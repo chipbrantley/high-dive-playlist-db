@@ -227,16 +227,17 @@ async function getSpotifyToken(clientId, clientSecret) {
 }
 
 async function getPlaylistData(token, playlistId) {
-  // Fetch playlist tracks (up to 100)
+  // Fetch playlist data without field filtering to avoid structural issues
   const response = await fetch(
-    `https://api.spotify.com/v1/playlists/${playlistId}?fields=name,description,tracks.total,tracks.items(track(id,name,album(release_date),artists(id,name),duration_ms))`,
+    `https://api.spotify.com/v1/playlists/${playlistId}`,
     {
       headers: { "Authorization": `Bearer ${token}` },
     }
   );
 
   if (!response.ok) {
-    throw new Error(`Spotify playlist fetch failed: ${response.status}`);
+    const errText = await response.text();
+    throw new Error(`Spotify playlist fetch failed: ${response.status} - ${errText}`);
   }
 
   return await response.json();
@@ -326,14 +327,18 @@ export async function handler(event) {
     let totalDurationMs = 0;
     let trackCount = 0;
 
-    for (const item of playlist.tracks.items) {
-      if (!item.track) continue;
+    const trackItems = (playlist.tracks && playlist.tracks.items) ? playlist.tracks.items : [];
+
+    for (const item of trackItems) {
+      if (!item || !item.track) continue;
       trackCount++;
       totalDurationMs += item.track.duration_ms || 0;
 
       // Collect unique artist IDs
-      for (const artist of item.track.artists) {
-        artistIdSet.add(artist.id);
+      if (item.track.artists) {
+        for (const artist of item.track.artists) {
+          if (artist && artist.id) artistIdSet.add(artist.id);
+        }
       }
 
       // Extract release year
@@ -360,9 +365,9 @@ export async function handler(event) {
       statusCode: 200,
       headers,
       body: JSON.stringify({
-        playlistName: playlist.name,
+        playlistName: playlist.name || "",
         playlistDescription: playlist.description || "",
-        trackCount: playlist.tracks.total,
+        trackCount: (playlist.tracks && playlist.tracks.total) || trackCount,
         runtime,
         suggestedTags: {
           genre: genreTags,
