@@ -650,7 +650,7 @@ const ALL_CATEGORIES = Object.keys(TAG_CATEGORIES);
 function CuratorView({ playlists, setPlaylists }) {
   const [phase, setPhase] = useState(1);
   const [form, setForm] = useState(
-    { title: "", curator: "Chip", description: "", link: "", tracks: "", runtime: "", tags: [] }
+    { title: "", curator: "", description: "", link: "", tracks: "", runtime: "", tags: [] }
   );
   const [aiSuggestions, setAiSuggestions] = useState(null); // { genre: [...], vibe: [...], ... }
   const [aiLoading, setAiLoading] = useState(false);
@@ -684,7 +684,7 @@ function CuratorView({ playlists, setPlaylists }) {
       runtime: form.runtime || "Unknown",
     };
     setPlaylists(prev => [...prev, newPlaylist]);
-    setForm({ title: "", curator: "Chip", description: "", link: "", tracks: "", runtime: "", tags: [] });
+    setForm({ title: "", curator: "", description: "", link: "", tracks: "", runtime: "", tags: [] });
     setAiSuggestions(null);
     setCustomTags([]);
     setAiError("");
