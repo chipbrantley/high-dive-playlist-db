@@ -226,10 +226,10 @@ async function getSpotifyToken(clientId, clientSecret) {
   return data.access_token;
 }
 
-async function getPlaylistMeta(token, playlistId) {
-  // Fetch playlist metadata (name, description, total tracks)
+async function getPlaylistFull(token, playlistId) {
+  // Fetch the full playlist object — includes metadata and first page of tracks
   const response = await fetch(
-    `https://api.spotify.com/v1/playlists/${playlistId}?fields=name,description,tracks.total`,
+    `https://api.spotify.com/v1/playlists/${playlistId}`,
     {
       headers: { "Authorization": `Bearer ${token}` },
     }
@@ -243,26 +243,23 @@ async function getPlaylistMeta(token, playlistId) {
   return await response.json();
 }
 
-async function getPlaylistTracks(token, playlistId) {
-  // Fetch tracks using the dedicated tracks endpoint, handling pagination
+async function getMoreTracks(token, nextUrl) {
+  // Follow pagination for playlists with more than 100 tracks
   const allItems = [];
-  let url = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=100`;
+  let url = nextUrl;
 
   while (url) {
     const response = await fetch(url, {
       headers: { "Authorization": `Bearer ${token}` },
     });
 
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`Spotify tracks fetch failed: ${response.status} - ${errText}`);
-    }
+    if (!response.ok) break; // Stop pagination on error, use what we have
 
     const data = await response.json();
     if (data.items) {
       allItems.push(...data.items);
     }
-    url = data.next || null; // Follow pagination
+    url = data.next || null;
   }
 
   return allItems;
@@ -352,11 +349,17 @@ export async function handler(event) {
       token = await getSpotifyToken(clientId, clientSecret);
     }
 
-    // Fetch playlist metadata and tracks separately
-    const [playlistMeta, trackItems] = await Promise.all([
-      getPlaylistMeta(token, playlistId),
-      getPlaylistTracks(token, playlistId),
-    ]);
+    // Fetch full playlist (metadata + first page of tracks in one call)
+    const playlist = await getPlaylistFull(token, playlistId);
+
+    // Collect all track items — first page comes with the playlist object
+    let trackItems = (playlist.tracks && playlist.tracks.items) ? playlist.tracks.items : [];
+
+    // If there are more pages, follow pagination
+    if (playlist.tracks && playlist.tracks.next) {
+      const moreItems = await getMoreTracks(token, playlist.tracks.next);
+      trackItems = trackItems.concat(moreItems);
+    }
 
     // Extract artist IDs and release years
     const artistIdSet = new Set();
@@ -400,9 +403,9 @@ export async function handler(event) {
       statusCode: 200,
       headers,
       body: JSON.stringify({
-        playlistName: playlistMeta.name || "",
-        playlistDescription: playlistMeta.description || "",
-        trackCount: (playlistMeta.tracks && playlistMeta.tracks.total) || trackCount,
+        playlistName: playlist.name || "",
+        playlistDescription: playlist.description || "",
+        trackCount: (playlist.tracks && playlist.tracks.total) || trackCount,
         runtime,
         suggestedTags: {
           genre: genreTags,
