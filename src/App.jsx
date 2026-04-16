@@ -1,43 +1,5 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback } from "react";
 import _ from "lodash";
-
-// ─── SPOTIFY AUTH CONFIG ────────────────────────────────────────────────────
-const SPOTIFY_CLIENT_ID = "319e9d25b04645d4bc36700a8c72039b";
-const SPOTIFY_REDIRECT_URI = "https://highdiveplaylists.netlify.app/callback";
-const SPOTIFY_SCOPES = "playlist-read-private playlist-read-collaborative";
-
-function getSpotifyAuthUrl() {
-  const params = new URLSearchParams({
-    client_id: SPOTIFY_CLIENT_ID,
-    response_type: "code",
-    redirect_uri: SPOTIFY_REDIRECT_URI,
-    scope: SPOTIFY_SCOPES,
-  });
-  return `https://accounts.spotify.com/authorize?${params.toString()}`;
-}
-
-// Save/restore form data across OAuth redirects
-function saveFormToSession(form) {
-  try {
-    sessionStorage.setItem("hd_curator_form", JSON.stringify(form));
-  } catch (e) { /* ignore */ }
-}
-
-function restoreFormFromSession() {
-  try {
-    const saved = sessionStorage.getItem("hd_curator_form");
-    if (saved) {
-      sessionStorage.removeItem("hd_curator_form");
-      return JSON.parse(saved);
-    }
-  } catch (e) { /* ignore */ }
-  return null;
-}
-
-function startSpotifyAuth(form) {
-  saveFormToSession(form);
-  window.location.href = getSpotifyAuthUrl();
-}
 
 // ─── TAG TAXONOMY ───────────────────────────────────────────────────────────
 const TAG_CATEGORIES = {
@@ -464,26 +426,20 @@ function PlaylistCard({ playlist, allCategories }) {
   );
 }
 
-// Categories that can be auto-tagged from Spotify API data
-const AUTO_TAGGABLE = new Set(["genre", "era", "energy"]);
-// Categories the curator handles manually
-const MANUAL_CATEGORIES = ["timeOfDay", "season", "room", "vibe", "practical"];
+const ALL_CATEGORIES = Object.keys(TAG_CATEGORIES);
 
-function CuratorView({ playlists, setPlaylists, spotifyToken, restoredForm }) {
+function CuratorView({ playlists, setPlaylists }) {
   const [phase, setPhase] = useState(1);
   const [form, setForm] = useState(
-    restoredForm || { title: "", curator: "Chip", description: "", link: "", tracks: "", runtime: "", tags: [] }
+    { title: "", curator: "Chip", description: "", link: "", tracks: "", runtime: "", tags: [] }
   );
-  const [autoTags, setAutoTags] = useState([]); // Tags auto-suggested from Spotify
-  const [spotifyLoading, setSpotifyLoading] = useState(false);
-  const [spotifyError, setSpotifyError] = useState("");
-  const [spotifyData, setSpotifyData] = useState(null);
-  const [activeCategory, setActiveCategory] = useState("timeOfDay");
+  const [aiSuggestions, setAiSuggestions] = useState(null); // { genre: [...], vibe: [...], ... }
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState("");
+  const [activeCategory, setActiveCategory] = useState("vibe");
   const [suggestTag, setSuggestTag] = useState("");
-  const [suggestions, setSuggestions] = useState([]);
+  const [customTags, setCustomTags] = useState([]);
   const [saved, setSaved] = useState(false);
-
-  const isSpotifyLink = form.link && form.link.toLowerCase().includes("spotify");
 
   const toggleTag = useCallback((tag) => {
     setForm(prev => ({
@@ -494,7 +450,7 @@ function CuratorView({ playlists, setPlaylists, spotifyToken, restoredForm }) {
 
   const handleSuggest = () => {
     if (suggestTag.trim()) {
-      setSuggestions(prev => [...prev, suggestTag.trim()]);
+      setCustomTags(prev => [...prev, suggestTag.trim()]);
       setForm(prev => ({ ...prev, tags: [...prev.tags, suggestTag.trim()] }));
       setSuggestTag("");
     }
@@ -510,87 +466,67 @@ function CuratorView({ playlists, setPlaylists, spotifyToken, restoredForm }) {
     };
     setPlaylists(prev => [...prev, newPlaylist]);
     setForm({ title: "", curator: "Chip", description: "", link: "", tracks: "", runtime: "", tags: [] });
-    setAutoTags([]);
-    setSuggestions([]);
-    setSpotifyData(null);
-    setSpotifyError("");
+    setAiSuggestions(null);
+    setCustomTags([]);
+    setAiError("");
     setPhase(1);
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   };
 
-  const fetchSpotifyData = async () => {
-    setSpotifyLoading(true);
-    setSpotifyError("");
-    console.log("[HD] Fetching Spotify data...", { link: form.link, hasToken: !!spotifyToken });
+  const fetchAISuggestions = async () => {
+    setAiLoading(true);
+    setAiError("");
+    console.log("[HD] Fetching AI tag suggestions...", { title: form.title });
     try {
-      const response = await fetch("/.netlify/functions/spotify", {
+      const response = await fetch("/.netlify/functions/suggest-tags", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ playlistUrl: form.link, accessToken: spotifyToken || undefined }),
+        body: JSON.stringify({ title: form.title, description: form.description }),
       });
       const data = await response.json();
-      console.log("[HD] Spotify response:", data);
+      console.log("[HD] AI suggestions:", data);
       if (!response.ok) {
-        throw new Error(data.error || "Failed to fetch playlist data");
+        throw new Error(data.error || "Failed to get tag suggestions");
       }
-      setSpotifyData(data);
 
-      // Auto-fill form fields from Spotify if they're empty
-      const updates = {};
-      if (!form.title && data.playlistName) updates.title = data.playlistName;
-      if (!form.description && data.playlistDescription) updates.description = data.playlistDescription;
-      if (!form.tracks && data.trackCount) updates.tracks = String(data.trackCount);
-      if (!form.runtime && data.runtime) updates.runtime = data.runtime;
+      setAiSuggestions(data.suggestedTags);
 
-      // Combine suggested genre + era tags
-      const suggested = [
-        ...(data.suggestedTags.genre || []),
-        ...(data.suggestedTags.era || []),
-      ];
-      setAutoTags(suggested);
-
-      // Pre-select the suggested tags
+      // Pre-select all suggested tags
+      const allSuggested = Object.values(data.suggestedTags).flat();
       const newTags = [...form.tags];
-      for (const tag of suggested) {
+      for (const tag of allSuggested) {
         if (!newTags.includes(tag)) newTags.push(tag);
       }
-      updates.tags = newTags;
-
-      if (Object.keys(updates).length > 0) {
-        setForm(prev => ({ ...prev, ...updates }));
-      }
+      setForm(prev => ({ ...prev, tags: newTags }));
 
       return true;
     } catch (err) {
-      setSpotifyError(err.message);
+      setAiError(err.message);
       return false;
     } finally {
-      setSpotifyLoading(false);
+      setAiLoading(false);
     }
   };
 
   const goToPhase2 = async () => {
     if (!form.title.trim()) return;
 
-    // If there's a Spotify link and we haven't fetched data yet, do it now
-    if (isSpotifyLink && !spotifyData) {
-      const success = await fetchSpotifyData();
-      // Proceed to phase 2 regardless of whether Spotify fetch succeeded
+    // Auto-fetch AI suggestions when moving to phase 2
+    if (!aiSuggestions) {
+      await fetchAISuggestions();
     }
 
     setPhase(2);
-    setActiveCategory("timeOfDay");
+    setActiveCategory("vibe");
   };
 
   const goBackToPhase1 = () => {
     setPhase(1);
   };
 
-  // Which categories to show in phase 2 tagging
-  // Auto-taggable ones appear in a separate "review" section; manual ones are the main focus
-  const manualCatEntries = Object.entries(TAG_CATEGORIES).filter(([key]) => MANUAL_CATEGORIES.includes(key));
-  const autoCatEntries = Object.entries(TAG_CATEGORIES).filter(([key]) => AUTO_TAGGABLE.has(key));
+  const totalSuggested = aiSuggestions ? Object.values(aiSuggestions).flat().length : 0;
+  const catEntries = Object.entries(TAG_CATEGORIES);
 
   return (
     <div>
@@ -665,7 +601,7 @@ function CuratorView({ playlists, setPlaylists, spotifyToken, restoredForm }) {
                 rows={4} style={{ ...inputStyle, resize: "vertical" }}
               />
               <input
-                type="text" placeholder="Spotify or Apple Music link"
+                type="text" placeholder="Link (Spotify, Apple Music, TIDAL, etc.)"
                 value={form.link}
                 onChange={e => setForm(p => ({ ...p, link: e.target.value }))}
                 style={inputStyle}
@@ -690,83 +626,47 @@ function CuratorView({ playlists, setPlaylists, spotifyToken, restoredForm }) {
             </div>
           </div>
 
-          {/* Spotify connection and auto-tag hints */}
-          {isSpotifyLink && spotifyToken && (
+          {form.title.trim() && form.description.trim() && (
             <div style={{
               background: "#f0f7f0", border: "1px solid #b8d4b8", borderRadius: "8px",
               padding: "16px 20px", marginBottom: "16px",
               fontSize: "0.85rem", color: "#3a5a3a", fontFamily: "Georgia, serif",
             }}>
-              🎵 Spotify connected — we'll auto-suggest genre and era tags from the track data when you proceed.
-              {!form.title && " We can also pull the playlist name, description, track count, and runtime."}
+              When you proceed, we'll auto-suggest tags across all categories based on your title and description.
             </div>
           )}
-          {isSpotifyLink && !spotifyToken && (
-            <div style={{
-              background: "#f5f0e8", border: "1px solid #d5c8b8", borderRadius: "8px",
-              padding: "16px 20px", marginBottom: "16px",
-              fontFamily: "Georgia, serif",
-            }}>
-              <div style={{ fontSize: "0.85rem", color: "#5a4a3a", marginBottom: "10px" }}>
-                🎵 Spotify link detected. Connect your Spotify account to auto-suggest genre and era tags.
-              </div>
-              <button
-                onClick={() => startSpotifyAuth(form)}
-                style={{
-                  display: "inline-block",
-                  background: "#1DB954", color: "#fff", border: "none", borderRadius: "20px",
-                  padding: "8px 20px", fontSize: "0.85rem", fontWeight: 600,
-                  cursor: "pointer",
-                }}
-              >
-                Connect Spotify
-              </button>
-              <span style={{ fontSize: "0.8rem", color: "#8a7565", marginLeft: "12px" }}>
-                or skip this and tag manually
-              </span>
-            </div>
-          )}
-          {!isSpotifyLink && form.link && form.link.trim() && (
-            <div style={{
-              background: "#f5f0e8", border: "1px solid #d5c8b8", borderRadius: "8px",
-              padding: "16px 20px", marginBottom: "16px",
-              fontSize: "0.85rem", color: "#5a4a3a", fontFamily: "Georgia, serif",
-            }}>
-              Non-Spotify link detected. Auto-tagging is currently available for Spotify playlists only. You can tag manually in the next step.
-            </div>
-          )}
-          {spotifyError && (
+          {aiError && (
             <div style={{
               background: "#fff0f0", border: "1px solid #d4b8b8", borderRadius: "8px",
               padding: "16px 20px", marginBottom: "16px",
               fontSize: "0.85rem", color: "#5a3a3a", fontFamily: "Georgia, serif",
             }}>
-              Couldn't fetch Spotify data: {spotifyError}. You can still tag manually.
+              Couldn't generate tag suggestions: {aiError}. You can still tag manually.
             </div>
           )}
 
           <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
             <button
               onClick={goToPhase2}
-              disabled={!form.title.trim() || spotifyLoading}
+              disabled={!form.title.trim() || aiLoading}
               style={{
-                background: (form.title.trim() && !spotifyLoading) ? "#8B4513" : "#ccc",
+                background: (form.title.trim() && !aiLoading) ? "#8B4513" : "#ccc",
                 color: "#fff", border: "none", borderRadius: "6px",
                 padding: "12px 32px", fontSize: "1rem", fontWeight: 600,
-                cursor: (form.title.trim() && !spotifyLoading) ? "pointer" : "default",
+                cursor: (form.title.trim() && !aiLoading) ? "pointer" : "default",
                 fontFamily: "Georgia, serif",
               }}
             >
-              {spotifyLoading ? "Fetching Spotify data..." : "Next: Add Keywords →"}
+              {aiLoading ? "Generating tag suggestions..." : "Next: Add Keywords →"}
             </button>
-            {!form.title.trim() && !spotifyLoading && (
+            {!form.title.trim() && !aiLoading && (
               <span style={{ fontSize: "0.8rem", color: "#8a7565" }}>
                 Add a title to continue
               </span>
             )}
-            {spotifyLoading && (
+            {aiLoading && (
               <span style={{ fontSize: "0.8rem", color: "#8a7565" }}>
-                Analyzing tracks, artists, and genres...
+                Reading the vibe...
               </span>
             )}
           </div>
@@ -811,177 +711,125 @@ function CuratorView({ playlists, setPlaylists, spotifyToken, restoredForm }) {
             </button>
           </div>
 
-          {/* Auto-taggable categories (genre, era, energy) — manual for now */}
+          {/* AI suggestions summary */}
+          {aiSuggestions && totalSuggested > 0 && (
+            <div style={{
+              background: "#f0f7f0", border: "1px solid #b8d4b8", borderRadius: "8px",
+              padding: "16px 20px", marginBottom: "20px",
+              fontFamily: "Georgia, serif",
+            }}>
+              <div style={{ fontSize: "0.85rem", color: "#3a5a3a", marginBottom: "4px", fontWeight: 600 }}>
+                {totalSuggested} tags auto-suggested
+              </div>
+              <div style={{ fontSize: "0.8rem", color: "#5a7a5a" }}>
+                Review the suggestions below — they're pre-selected. Click any tag to add or remove it.
+              </div>
+              <button
+                onClick={fetchAISuggestions}
+                disabled={aiLoading}
+                style={{
+                  marginTop: "8px", background: "transparent", border: "1px solid #b8d4b8",
+                  borderRadius: "4px", padding: "4px 12px", fontSize: "0.75rem",
+                  cursor: aiLoading ? "default" : "pointer", color: "#3a5a3a",
+                }}
+              >
+                {aiLoading ? "Regenerating..." : "Regenerate suggestions"}
+              </button>
+            </div>
+          )}
+
+          {/* All tag categories in one unified section */}
           <div style={{
             background: "#faf7f2", border: "1px solid #e0d5c7", borderRadius: "8px",
             overflow: "hidden", marginBottom: "20px",
           }}>
             <div style={{ padding: "16px 24px 0" }}>
               <h3 style={{ margin: "0 0 4px 0", fontFamily: "Georgia, serif", color: "#2c1810", fontSize: "1rem" }}>
-                Musical DNA
+                Keywords
               </h3>
               <p style={{ margin: "0 0 8px 0", color: "#8a7565", fontSize: "0.8rem" }}>
-                {autoTags.length > 0
-                  ? "Genre and era tags were auto-suggested from Spotify. Review and adjust — add anything we missed, remove anything wrong."
-                  : "Genre, era, and energy. Paste a Spotify link in Phase 1 to get auto-suggestions here."
-                }
+                What words would you use to describe (and search for) this playlist?
               </p>
-              {autoTags.length > 0 && (
+            </div>
+
+            {/* Category tabs */}
+            <div style={{
+              display: "flex", gap: "0", borderBottom: "1px solid #e0d5c7", overflowX: "auto",
+              padding: "0 24px",
+            }}>
+              {catEntries.map(([key, cat]) => {
+                const showThis = activeCategory === key;
+                const catSuggestionCount = aiSuggestions && aiSuggestions[key] ? aiSuggestions[key].length : 0;
+                return (
+                  <button
+                    key={key}
+                    onClick={() => setActiveCategory(key)}
+                    style={{
+                      background: showThis ? cat.color : "transparent",
+                      color: showThis ? "#fff" : "#5a4a3a",
+                      border: "none",
+                      borderRadius: "6px 6px 0 0",
+                      padding: "8px 16px",
+                      fontSize: "0.8rem",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.03em",
+                      whiteSpace: "nowrap",
+                      position: "relative",
+                    }}
+                  >
+                    {cat.label}
+                    {catSuggestionCount > 0 && !showThis && (
+                      <span style={{
+                        marginLeft: "4px", background: "#b8d4b8", color: "#3a5a3a",
+                        borderRadius: "8px", padding: "1px 5px", fontSize: "0.65rem",
+                      }}>
+                        {catSuggestionCount}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div style={{ padding: "12px 24px 16px" }}>
+              {/* Show which tags were AI-suggested for this category */}
+              {aiSuggestions && aiSuggestions[activeCategory] && aiSuggestions[activeCategory].length > 0 && (
                 <div style={{
-                  background: "#f0f7f0", border: "1px solid #b8d4b8", borderRadius: "6px",
-                  padding: "10px 14px", marginBottom: "8px",
-                  fontSize: "0.8rem", color: "#3a5a3a",
+                  fontSize: "0.75rem", color: "#5a7a5a", marginBottom: "8px",
+                  fontStyle: "italic",
                 }}>
-                  <span style={{ fontWeight: 600 }}>Auto-suggested ({autoTags.length}): </span>
-                  {autoTags.join(", ")}
+                  Suggested: {aiSuggestions[activeCategory].join(", ")}
                 </div>
               )}
-            </div>
-
-            {/* Auto-taggable category tabs */}
-            <div style={{
-              display: "flex", gap: "0", borderBottom: "1px solid #e0d5c7", overflowX: "auto",
-              padding: "0 24px",
-            }}>
-              {autoCatEntries.map(([key, cat]) => {
-                const isAutoActive = AUTO_TAGGABLE.has(key) &&
-                  ((!MANUAL_CATEGORIES.includes(activeCategory) && activeCategory === key) ||
-                   (MANUAL_CATEGORIES.includes(activeCategory) && key === "genre"));
-                const showThis = !MANUAL_CATEGORIES.includes(activeCategory) && activeCategory === key;
-                return (
-                  <button
-                    key={key}
-                    onClick={() => setActiveCategory(key)}
-                    style={{
-                      background: showThis ? cat.color : "transparent",
-                      color: showThis ? "#fff" : "#5a4a3a",
-                      border: "none",
-                      borderRadius: "6px 6px 0 0",
-                      padding: "8px 16px",
-                      fontSize: "0.8rem",
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.03em",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {cat.label}
-                  </button>
-                );
-              })}
-            </div>
-
-            {!MANUAL_CATEGORIES.includes(activeCategory) && (
-              <div style={{ padding: "12px 24px 16px" }}>
-                <TagCloud
-                  tags={TAG_CATEGORIES[activeCategory].tags}
-                  activeTags={form.tags}
-                  onToggle={toggleTag}
-                  color={TAG_CATEGORIES[activeCategory].color}
+              <TagCloud
+                tags={TAG_CATEGORIES[activeCategory].tags}
+                activeTags={form.tags}
+                onToggle={toggleTag}
+                color={TAG_CATEGORIES[activeCategory].color}
+              />
+              <div style={{ display: "flex", gap: "8px", marginTop: "12px", alignItems: "center" }}>
+                <input
+                  type="text"
+                  placeholder={`Suggest a new ${TAG_CATEGORIES[activeCategory].label.toLowerCase()} tag...`}
+                  value={suggestTag}
+                  onChange={e => setSuggestTag(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && handleSuggest()}
+                  style={{ ...inputStyle, flex: 1, fontSize: "0.85rem" }}
                 />
-                <div style={{ display: "flex", gap: "8px", marginTop: "12px", alignItems: "center" }}>
-                  <input
-                    type="text"
-                    placeholder={`Suggest a new ${TAG_CATEGORIES[activeCategory].label.toLowerCase()} tag...`}
-                    value={suggestTag}
-                    onChange={e => setSuggestTag(e.target.value)}
-                    onKeyDown={e => e.key === "Enter" && handleSuggest()}
-                    style={{ ...inputStyle, flex: 1, fontSize: "0.85rem" }}
-                  />
-                  <button onClick={handleSuggest} style={smallBtnStyle}>+ Add</button>
-                </div>
+                <button onClick={handleSuggest} style={smallBtnStyle}>+ Add</button>
               </div>
-            )}
-
-            {MANUAL_CATEGORIES.includes(activeCategory) && (
-              <div style={{ padding: "12px 24px 16px", color: "#8a7565", fontSize: "0.85rem" }}>
-                Select a tab above to tag genre, era, or energy.
-              </div>
-            )}
+            </div>
           </div>
 
-          {/* Manual categories — the human stuff */}
-          <div style={{
-            background: "#faf7f2", border: "1px solid #e0d5c7", borderRadius: "8px",
-            overflow: "hidden", marginBottom: "20px",
-          }}>
-            <div style={{ padding: "16px 24px 0" }}>
-              <h3 style={{ margin: "0 0 4px 0", fontFamily: "Georgia, serif", color: "#2c1810", fontSize: "1rem" }}>
-                Other Keywords
-              </h3>
-              <p style={{ margin: "0 0 8px 0", color: "#8a7565", fontSize: "0.8rem" }}>
-                What are some other words you'd use to describe (and search for) this playlist?
-              </p>
-            </div>
-
-            {/* Manual category tabs */}
-            <div style={{
-              display: "flex", gap: "0", borderBottom: "1px solid #e0d5c7", overflowX: "auto",
-              padding: "0 24px",
-            }}>
-              {manualCatEntries.map(([key, cat]) => {
-                const showThis = activeCategory === key;
-                return (
-                  <button
-                    key={key}
-                    onClick={() => setActiveCategory(key)}
-                    style={{
-                      background: showThis ? cat.color : "transparent",
-                      color: showThis ? "#fff" : "#5a4a3a",
-                      border: "none",
-                      borderRadius: "6px 6px 0 0",
-                      padding: "8px 16px",
-                      fontSize: "0.8rem",
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.03em",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {cat.label}
-                  </button>
-                );
-              })}
-            </div>
-
-            {MANUAL_CATEGORIES.includes(activeCategory) && (
-              <div style={{ padding: "12px 24px 16px" }}>
-                <TagCloud
-                  tags={TAG_CATEGORIES[activeCategory].tags}
-                  activeTags={form.tags}
-                  onToggle={toggleTag}
-                  color={TAG_CATEGORIES[activeCategory].color}
-                />
-                <div style={{ display: "flex", gap: "8px", marginTop: "12px", alignItems: "center" }}>
-                  <input
-                    type="text"
-                    placeholder={`Suggest a new ${TAG_CATEGORIES[activeCategory].label.toLowerCase()} tag...`}
-                    value={suggestTag}
-                    onChange={e => setSuggestTag(e.target.value)}
-                    onKeyDown={e => e.key === "Enter" && handleSuggest()}
-                    style={{ ...inputStyle, flex: 1, fontSize: "0.85rem" }}
-                  />
-                  <button onClick={handleSuggest} style={smallBtnStyle}>+ Add</button>
-                </div>
-              </div>
-            )}
-
-            {!MANUAL_CATEGORIES.includes(activeCategory) && (
-              <div style={{ padding: "12px 24px 16px", color: "#8a7565", fontSize: "0.85rem" }}>
-                Select a tab above to tag time, season, room, vibe, or practical details.
-              </div>
-            )}
-          </div>
-
-          {suggestions.length > 0 && (
+          {customTags.length > 0 && (
             <div style={{
               fontSize: "0.8rem", color: "#8a7565", marginBottom: "12px",
               background: "#faf7f2", border: "1px solid #e0d5c7", borderRadius: "8px",
               padding: "12px 20px",
             }}>
-              <span style={{ fontWeight: 600 }}>Suggested tags: </span>{suggestions.join(", ")}
+              <span style={{ fontWeight: 600 }}>Custom tags: </span>{customTags.join(", ")}
             </div>
           )}
 
@@ -1203,47 +1051,6 @@ const smallBtnStyle = {
 export default function HighDivePlaylistDB() {
   const [view, setView] = useState("search");
   const [playlists, setPlaylists] = useState(INITIAL_PLAYLISTS);
-  const [spotifyToken, setSpotifyToken] = useState(null);
-  const [spotifyAuthLoading, setSpotifyAuthLoading] = useState(false);
-  const [restoredForm, setRestoredForm] = useState(null);
-
-  // Handle Spotify OAuth callback
-  useEffect(() => {
-    const url = new URL(window.location.href);
-    const code = url.searchParams.get("code");
-
-    if (code && url.pathname === "/callback") {
-      setSpotifyAuthLoading(true);
-
-      // Restore form data that was saved before redirect
-      const savedForm = restoreFormFromSession();
-      if (savedForm) {
-        setRestoredForm(savedForm);
-      }
-
-      // Exchange the code for an access token via our serverless function
-      fetch("/.netlify/functions/spotify-token", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code, redirect_uri: SPOTIFY_REDIRECT_URI }),
-      })
-        .then(r => r.json())
-        .then(data => {
-          if (data.access_token) {
-            setSpotifyToken(data.access_token);
-            setView("curate");
-          } else {
-            console.error("Spotify token exchange returned no token:", data);
-          }
-        })
-        .catch(err => console.error("Spotify auth error:", err))
-        .finally(() => {
-          setSpotifyAuthLoading(false);
-          // Clean up the URL
-          window.history.replaceState({}, document.title, "/");
-        });
-    }
-  }, []);
 
   return (
     <div style={{
@@ -1294,18 +1101,9 @@ export default function HighDivePlaylistDB() {
         </div>
       </div>
 
-      {spotifyAuthLoading && (
-        <div style={{
-          textAlign: "center", padding: "24px",
-          color: "#8a7565", fontFamily: "Georgia, serif",
-        }}>
-          Connecting to Spotify...
-        </div>
-      )}
-
       {view === "search"
         ? <SearchView playlists={playlists} />
-        : <CuratorView playlists={playlists} setPlaylists={setPlaylists} spotifyToken={spotifyToken} restoredForm={restoredForm} />
+        : <CuratorView playlists={playlists} setPlaylists={setPlaylists} />
       }
 
       {/* Footer */}
