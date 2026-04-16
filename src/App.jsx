@@ -1150,14 +1150,14 @@ function SearchView({ playlists, setPlaylists }) {
 
   return (
     <div>
-      {/* Search header — warm and dark like the HD interior at night */}
+      {/* Search header — monochromatic, editorial */}
       <div style={{
-        background: `linear-gradient(135deg, ${HD.black} 0%, ${HD.walnut} 100%)`,
+        background: HD.black,
         borderRadius: "8px", padding: "36px 32px", marginBottom: "24px", textAlign: "center",
       }}>
         <h2 style={{
           margin: "0 0 16px 0", fontFamily: FONT_DISPLAY,
-          color: "#f5e6d3", fontSize: "1.5rem", fontWeight: 400, fontStyle: "italic",
+          color: HD.cream, fontSize: "1.5rem", fontWeight: 400, fontStyle: "italic",
         }}>
           What are you in the mood for?
         </h2>
@@ -1186,7 +1186,7 @@ function SearchView({ playlists, setPlaylists }) {
           <div style={{ marginTop: "12px", display: "flex", flexWrap: "wrap", gap: "6px", justifyContent: "center" }}>
             {curatorFilter && (
               <span onClick={() => setCuratorFilter(null)} style={{
-                background: "rgba(139,69,19,0.6)", color: "#f5e6d3",
+                background: "rgba(242,113,120,0.5)", color: HD.cream,
                 borderRadius: "4px", padding: "3px 10px", fontSize: "0.8rem",
                 cursor: "pointer", fontWeight: 600,
               }}>
@@ -1195,7 +1195,7 @@ function SearchView({ playlists, setPlaylists }) {
             )}
             {activeFilters.map(f => (
               <span key={f} onClick={() => toggleFilter(f)} style={{
-                background: "rgba(255,255,255,0.2)", color: "#f5e6d3",
+                background: "rgba(255,255,255,0.15)", color: HD.cream,
                 borderRadius: "4px", padding: "3px 10px", fontSize: "0.8rem",
                 cursor: "pointer",
               }}>
@@ -1204,7 +1204,7 @@ function SearchView({ playlists, setPlaylists }) {
             ))}
             <span
               onClick={() => { setActiveFilters([]); setCuratorFilter(null); }}
-              style={{ color: "#f5e6d3", fontSize: "0.8rem", cursor: "pointer", padding: "3px 8px", textDecoration: "underline" }}
+              style={{ color: HD.cream, fontSize: "0.8rem", cursor: "pointer", padding: "3px 8px", textDecoration: "underline" }}
             >
               clear all
             </span>
@@ -1285,21 +1285,17 @@ function SearchView({ playlists, setPlaylists }) {
 // ─── MAIN APP ───────────────────────────────────────────────────────────────
 const FONT_DISPLAY = "'Playfair Display', Georgia, serif";
 const FONT_BODY = "Georgia, 'Times New Roman', serif";
-const FONT_NAV = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif";
+const FONT_NAV = "'Archivo Narrow', 'Titling Gothic FB', -apple-system, Helvetica, sans-serif";
 
-// High Dive palette — drawn from the space
+// High Dive brand palette — from official brand guidelines 3.5.26
 const HD = {
-  black: "#1a1510",         // ceiling, speakers
-  walnut: "#2c1f14",        // dark wood
-  amber: "#c17f24",         // warm lighting, honey wood
-  cork: "#b8916a",          // cork floors
-  oak: "#a07850",           // lighter wood tones
-  green: "#3d6b4f",         // those tufted bar stools
-  greenLight: "#4a7c59",
-  cream: "#f5f2ed",         // website background
-  warmWhite: "#faf8f4",     // cards
-  warmGray: "#8a7d6f",      // secondary text
-  rule: "#d9d0c5",          // thin rules like the website
+  black: "#3E3E3F",         // HIGH DIVE BLACK (Pantone Black 3 U)
+  walnut: "#2E2E2F",        // darker shade for gradients
+  amber: "#F27178",         // HIGH DIVE PINK — accent, used sparingly
+  cream: "#FAF7F5",         // HIGH DIVE CREAM — background
+  warmWhite: "#FFFFFF",     // cards
+  warmGray: "#7A7A7B",      // secondary text
+  rule: "#E0DEDD",          // thin rules
 };
 
 const inputStyle = {
