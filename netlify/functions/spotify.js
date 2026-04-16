@@ -226,10 +226,10 @@ async function getSpotifyToken(clientId, clientSecret) {
   return data.access_token;
 }
 
-async function getPlaylistData(token, playlistId) {
-  // Fetch playlist data without field filtering to avoid structural issues
+async function getPlaylistMeta(token, playlistId) {
+  // Fetch playlist metadata (name, description, total tracks)
   const response = await fetch(
-    `https://api.spotify.com/v1/playlists/${playlistId}`,
+    `https://api.spotify.com/v1/playlists/${playlistId}?fields=name,description,tracks.total`,
     {
       headers: { "Authorization": `Bearer ${token}` },
     }
@@ -241,6 +241,31 @@ async function getPlaylistData(token, playlistId) {
   }
 
   return await response.json();
+}
+
+async function getPlaylistTracks(token, playlistId) {
+  // Fetch tracks using the dedicated tracks endpoint, handling pagination
+  const allItems = [];
+  let url = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=100`;
+
+  while (url) {
+    const response = await fetch(url, {
+      headers: { "Authorization": `Bearer ${token}` },
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Spotify tracks fetch failed: ${response.status} - ${errText}`);
+    }
+
+    const data = await response.json();
+    if (data.items) {
+      allItems.push(...data.items);
+    }
+    url = data.next || null; // Follow pagination
+  }
+
+  return allItems;
 }
 
 async function getArtistGenres(token, artistIds) {
@@ -318,16 +343,17 @@ export async function handler(event) {
     // Authenticate
     const token = await getSpotifyToken(clientId, clientSecret);
 
-    // Fetch playlist
-    const playlist = await getPlaylistData(token, playlistId);
+    // Fetch playlist metadata and tracks separately
+    const [playlistMeta, trackItems] = await Promise.all([
+      getPlaylistMeta(token, playlistId),
+      getPlaylistTracks(token, playlistId),
+    ]);
 
     // Extract artist IDs and release years
     const artistIdSet = new Set();
     const releaseYears = [];
     let totalDurationMs = 0;
     let trackCount = 0;
-
-    const trackItems = (playlist.tracks && playlist.tracks.items) ? playlist.tracks.items : [];
 
     for (const item of trackItems) {
       if (!item || !item.track) continue;
@@ -365,9 +391,9 @@ export async function handler(event) {
       statusCode: 200,
       headers,
       body: JSON.stringify({
-        playlistName: playlist.name || "",
-        playlistDescription: playlist.description || "",
-        trackCount: (playlist.tracks && playlist.tracks.total) || trackCount,
+        playlistName: playlistMeta.name || "",
+        playlistDescription: playlistMeta.description || "",
+        trackCount: (playlistMeta.tracks && playlistMeta.tracks.total) || trackCount,
         runtime,
         suggestedTags: {
           genre: genreTags,
