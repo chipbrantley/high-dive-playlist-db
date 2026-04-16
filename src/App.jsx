@@ -436,11 +436,16 @@ function CuratorView({ playlists, setPlaylists }) {
   const [form, setForm] = useState({
     title: "", curator: "Chip", description: "", link: "", tracks: "", runtime: "", tags: [],
   });
-  const [autoTags, setAutoTags] = useState([]); // Tags that would be auto-assigned
+  const [autoTags, setAutoTags] = useState([]); // Tags auto-suggested from Spotify
+  const [spotifyLoading, setSpotifyLoading] = useState(false);
+  const [spotifyError, setSpotifyError] = useState("");
+  const [spotifyData, setSpotifyData] = useState(null);
   const [activeCategory, setActiveCategory] = useState("timeOfDay");
   const [suggestTag, setSuggestTag] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [saved, setSaved] = useState(false);
+
+  const isSpotifyLink = form.link && form.link.toLowerCase().includes("spotify");
 
   const toggleTag = useCallback((tag) => {
     setForm(prev => ({
@@ -469,15 +474,71 @@ function CuratorView({ playlists, setPlaylists }) {
     setForm({ title: "", curator: "Chip", description: "", link: "", tracks: "", runtime: "", tags: [] });
     setAutoTags([]);
     setSuggestions([]);
+    setSpotifyData(null);
+    setSpotifyError("");
     setPhase(1);
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   };
 
-  const goToPhase2 = () => {
+  const fetchSpotifyData = async () => {
+    setSpotifyLoading(true);
+    setSpotifyError("");
+    try {
+      const response = await fetch("/.netlify/functions/spotify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playlistUrl: form.link }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to fetch playlist data");
+      }
+      setSpotifyData(data);
+
+      // Auto-fill form fields from Spotify if they're empty
+      const updates = {};
+      if (!form.title && data.playlistName) updates.title = data.playlistName;
+      if (!form.description && data.playlistDescription) updates.description = data.playlistDescription;
+      if (!form.tracks && data.trackCount) updates.tracks = String(data.trackCount);
+      if (!form.runtime && data.runtime) updates.runtime = data.runtime;
+
+      // Combine suggested genre + era tags
+      const suggested = [
+        ...(data.suggestedTags.genre || []),
+        ...(data.suggestedTags.era || []),
+      ];
+      setAutoTags(suggested);
+
+      // Pre-select the suggested tags
+      const newTags = [...form.tags];
+      for (const tag of suggested) {
+        if (!newTags.includes(tag)) newTags.push(tag);
+      }
+      updates.tags = newTags;
+
+      if (Object.keys(updates).length > 0) {
+        setForm(prev => ({ ...prev, ...updates }));
+      }
+
+      return true;
+    } catch (err) {
+      setSpotifyError(err.message);
+      return false;
+    } finally {
+      setSpotifyLoading(false);
+    }
+  };
+
+  const goToPhase2 = async () => {
     if (!form.title.trim()) return;
-    // In the future, this is where we'd call the Spotify API to auto-tag genre/era/energy.
-    // For now, we move to phase 2 with all categories available for manual tagging.
+
+    // If there's a Spotify link and we haven't fetched data yet, do it now
+    if (isSpotifyLink && !spotifyData) {
+      const success = await fetchSpotifyData();
+      // Proceed to phase 2 regardless of whether Spotify fetch succeeded
+    }
+
     setPhase(2);
     setActiveCategory("timeOfDay");
   };
@@ -535,7 +596,7 @@ function CuratorView({ playlists, setPlaylists }) {
             fontSize: "0.85rem", fontWeight: phase === 2 ? 600 : 400,
             color: phase === 2 ? "#2c1810" : "#8a7565", fontFamily: "Georgia, serif",
           }}>
-            Tag the Vibe
+            Add Keywords
           </span>
         </div>
       </div>
@@ -590,33 +651,48 @@ function CuratorView({ playlists, setPlaylists }) {
           </div>
 
           {/* Spotify auto-tag hint */}
-          {form.link && form.link.includes("spotify") && (
+          {isSpotifyLink && (
             <div style={{
               background: "#f0f7f0", border: "1px solid #b8d4b8", borderRadius: "8px",
               padding: "16px 20px", marginBottom: "16px",
               fontSize: "0.85rem", color: "#3a5a3a", fontFamily: "Georgia, serif",
             }}>
-              🎵 Spotify link detected — in a future update, we'll auto-suggest genre, era, and energy tags from the track data.
+              🎵 Spotify link detected — we'll auto-suggest genre and era tags from the track data when you proceed.
+              {!form.title && " We can also pull the playlist name, description, track count, and runtime."}
+            </div>
+          )}
+          {spotifyError && (
+            <div style={{
+              background: "#fff0f0", border: "1px solid #d4b8b8", borderRadius: "8px",
+              padding: "16px 20px", marginBottom: "16px",
+              fontSize: "0.85rem", color: "#5a3a3a", fontFamily: "Georgia, serif",
+            }}>
+              Couldn't fetch Spotify data: {spotifyError}. You can still tag manually.
             </div>
           )}
 
           <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
             <button
               onClick={goToPhase2}
-              disabled={!form.title.trim()}
+              disabled={!form.title.trim() || spotifyLoading}
               style={{
-                background: form.title.trim() ? "#8B4513" : "#ccc",
+                background: (form.title.trim() && !spotifyLoading) ? "#8B4513" : "#ccc",
                 color: "#fff", border: "none", borderRadius: "6px",
                 padding: "12px 32px", fontSize: "1rem", fontWeight: 600,
-                cursor: form.title.trim() ? "pointer" : "default",
+                cursor: (form.title.trim() && !spotifyLoading) ? "pointer" : "default",
                 fontFamily: "Georgia, serif",
               }}
             >
-              Next: Tag the Vibe →
+              {spotifyLoading ? "Fetching Spotify data..." : "Next: Add Keywords →"}
             </button>
-            {!form.title.trim() && (
+            {!form.title.trim() && !spotifyLoading && (
               <span style={{ fontSize: "0.8rem", color: "#8a7565" }}>
                 Add a title to continue
+              </span>
+            )}
+            {spotifyLoading && (
+              <span style={{ fontSize: "0.8rem", color: "#8a7565" }}>
+                Analyzing tracks, artists, and genres...
               </span>
             )}
           </div>
@@ -671,8 +747,21 @@ function CuratorView({ playlists, setPlaylists }) {
                 Musical DNA
               </h3>
               <p style={{ margin: "0 0 8px 0", color: "#8a7565", fontSize: "0.8rem" }}>
-                Genre, era, and energy — these will be auto-suggested from Spotify data in a future update. For now, tag manually.
+                {autoTags.length > 0
+                  ? "Genre and era tags were auto-suggested from Spotify. Review and adjust — add anything we missed, remove anything wrong."
+                  : "Genre, era, and energy. Paste a Spotify link in Phase 1 to get auto-suggestions here."
+                }
               </p>
+              {autoTags.length > 0 && (
+                <div style={{
+                  background: "#f0f7f0", border: "1px solid #b8d4b8", borderRadius: "6px",
+                  padding: "10px 14px", marginBottom: "8px",
+                  fontSize: "0.8rem", color: "#3a5a3a",
+                }}>
+                  <span style={{ fontWeight: 600 }}>Auto-suggested ({autoTags.length}): </span>
+                  {autoTags.join(", ")}
+                </div>
+              )}
             </div>
 
             {/* Auto-taggable category tabs */}
@@ -745,10 +834,10 @@ function CuratorView({ playlists, setPlaylists }) {
           }}>
             <div style={{ padding: "16px 24px 0" }}>
               <h3 style={{ margin: "0 0 4px 0", fontFamily: "Georgia, serif", color: "#2c1810", fontSize: "1rem" }}>
-                The Human Stuff
+                Other Keywords
               </h3>
               <p style={{ margin: "0 0 8px 0", color: "#8a7565", fontSize: "0.8rem" }}>
-                Only a person who's been in the room can answer these. When should this play? What does it feel like?
+                What are some other words you'd use to describe (and search for) this playlist?
               </p>
             </div>
 
