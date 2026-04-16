@@ -399,20 +399,20 @@ function TagCloud({ tags, activeTags, onToggle, color }) {
             key={tag}
             onClick={() => onToggle(tag)}
             style={{
-              background: active ? color : "transparent",
-              color: active ? "#fff" : "#4a3728",
+              background: active ? HD.walnut : "transparent",
+              color: active ? "#fff" : HD.black,
               border: "none",
               borderRadius: "3px",
               padding: "2px 6px",
               fontSize: `${sizes[tag]}rem`,
               cursor: "pointer",
-              fontFamily: "Georgia, serif",
-              opacity: active ? 1 : 0.85,
+              fontFamily: FONT_BODY,
+              opacity: active ? 1 : 0.7,
               transition: "all 0.15s ease",
               fontWeight: active ? 600 : 400,
             }}
             onMouseEnter={e => { if (!active) e.target.style.opacity = 1; e.target.style.textDecoration = "underline"; }}
-            onMouseLeave={e => { if (!active) e.target.style.opacity = 0.85; e.target.style.textDecoration = "none"; }}
+            onMouseLeave={e => { if (!active) e.target.style.opacity = 0.7; e.target.style.textDecoration = "none"; }}
           >
             {tag}
           </button>
@@ -451,45 +451,46 @@ function PlaylistCard({ playlist, allCategories, onCuratorClick }) {
   return (
     <div
       style={{
-        background: "#faf7f2",
-        border: "1px solid #e0d5c7",
-        borderRadius: "8px",
+        background: HD.warmWhite,
+        border: `1px solid ${HD.rule}`,
+        borderRadius: "6px",
         padding: "20px",
-        marginBottom: "12px",
+        marginBottom: "10px",
         cursor: "pointer",
         transition: "box-shadow 0.2s",
       }}
       onClick={() => setExpanded(!expanded)}
-      onMouseEnter={e => e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.1)"}
+      onMouseEnter={e => e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.08)"}
       onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div style={{ flex: 1 }}>
-          <h3 style={{ margin: "0 0 4px 0", fontFamily: "Georgia, serif", color: "#2c1810", fontSize: "1.15rem" }}>
+          <h3 style={{ margin: "0 0 4px 0", fontFamily: FONT_DISPLAY, color: HD.black, fontSize: "1.15rem" }}>
             {playlist.title}
           </h3>
-          <div style={{ fontSize: "0.8rem", color: "#8a7565", marginBottom: "8px" }}>
+          <div style={{ fontSize: "0.75rem", color: HD.warmGray, marginBottom: "8px", fontFamily: FONT_NAV }}>
             <span
               onClick={onCuratorClick ? (e) => { e.stopPropagation(); onCuratorClick(playlist.curator); } : undefined}
               style={onCuratorClick ? {
-                color: "#8B4513", cursor: "pointer", textDecoration: "underline",
-                textDecorationColor: "#d5c8b8",
+                color: HD.amber, cursor: "pointer", textDecoration: "underline",
+                textDecorationColor: HD.rule,
               } : {}}
-              onMouseEnter={onCuratorClick ? (e) => { e.target.style.textDecorationColor = "#8B4513"; } : undefined}
-              onMouseLeave={onCuratorClick ? (e) => { e.target.style.textDecorationColor = "#d5c8b8"; } : undefined}
+              onMouseEnter={onCuratorClick ? (e) => { e.target.style.textDecorationColor = HD.amber; } : undefined}
+              onMouseLeave={onCuratorClick ? (e) => { e.target.style.textDecorationColor = HD.rule; } : undefined}
             >
               {playlist.curator}
             </span>
             {" "}&middot; {playlist.tracks} tracks &middot; {playlist.runtime}
           </div>
-          <p style={{ margin: 0, color: "#5a4a3a", fontSize: "0.9rem", lineHeight: 1.5, fontFamily: "Georgia, serif" }}>
+          <p style={{ margin: 0, color: "#4a3f34", fontSize: "0.9rem", lineHeight: 1.6, fontFamily: FONT_BODY }}>
             {playlist.description}
           </p>
         </div>
         {playlist.score !== undefined && (
           <div style={{
-            background: "#8B4513", color: "#fff", borderRadius: "12px",
-            padding: "2px 10px", fontSize: "0.75rem", fontWeight: 600, marginLeft: "12px", flexShrink: 0,
+            background: HD.walnut, color: "#fff", borderRadius: "12px",
+            padding: "2px 10px", fontSize: "0.7rem", fontWeight: 600, marginLeft: "12px", flexShrink: 0,
+            fontFamily: FONT_NAV,
           }}>
             {Math.round(playlist.score * 10) / 10}
           </div>
@@ -497,7 +498,7 @@ function PlaylistCard({ playlist, allCategories, onCuratorClick }) {
       </div>
 
       {expanded && (
-        <div style={{ marginTop: "16px", paddingTop: "12px", borderTop: "1px solid #e0d5c7" }}>
+        <div style={{ marginTop: "16px", paddingTop: "12px", borderTop: `1px solid ${HD.rule}` }}>
           {Object.entries(tagsByCategory).map(([catKey, tags]) => {
             const cat = allCategories[catKey];
             return (
@@ -517,7 +518,7 @@ function PlaylistCard({ playlist, allCategories, onCuratorClick }) {
           {playlist.link && (
             <div style={{ marginTop: "12px" }}>
               <a href={playlist.link} target="_blank" rel="noreferrer"
-                style={{ color: "#8B4513", fontSize: "0.85rem" }}>
+                style={{ color: HD.amber, fontSize: "0.85rem" }}>
                 Open playlist &rarr;
               </a>
             </div>
@@ -1025,35 +1026,36 @@ function SearchView({ playlists }) {
 
   return (
     <div>
-      {/* Search header — Cookthink style */}
+      {/* Search header — warm and dark like the HD interior at night */}
       <div style={{
-        background: "linear-gradient(135deg, #3c2415 0%, #5a3a28 100%)",
-        borderRadius: "12px", padding: "32px", marginBottom: "24px", textAlign: "center",
+        background: `linear-gradient(135deg, ${HD.black} 0%, ${HD.walnut} 100%)`,
+        borderRadius: "8px", padding: "36px 32px", marginBottom: "24px", textAlign: "center",
       }}>
         <h2 style={{
-          margin: "0 0 16px 0", fontFamily: "Georgia, serif",
-          color: "#f5e6d3", fontSize: "1.6rem", fontWeight: 400,
+          margin: "0 0 16px 0", fontFamily: FONT_DISPLAY,
+          color: "#f5e6d3", fontSize: "1.5rem", fontWeight: 400, fontStyle: "italic",
         }}>
-          what are you in the mood for?
+          What are you in the mood for?
         </h2>
         <div style={{ maxWidth: "600px", margin: "0 auto", display: "flex", gap: "8px" }}>
           <input
             type="text"
-            placeholder="Type cravings separated by spaces... e.g. rainy chill afternoon"
+            placeholder="e.g. rainy chill afternoon jazz"
             value={query}
             onChange={e => setQuery(e.target.value)}
             style={{
-              flex: 1, padding: "12px 16px", borderRadius: "6px", border: "none",
-              fontSize: "1rem", fontFamily: "Georgia, serif",
-              background: "#faf7f2", color: "#2c1810",
+              flex: 1, padding: "12px 16px", borderRadius: "4px", border: "none",
+              fontSize: "1rem", fontFamily: FONT_BODY,
+              background: HD.warmWhite, color: HD.black,
             }}
           />
           <button style={{
-            background: "#D2691E", color: "#fff", border: "none",
-            borderRadius: "6px", padding: "12px 24px", fontSize: "1rem",
-            fontWeight: 600, cursor: "pointer", fontFamily: "Georgia, serif",
+            background: HD.amber, color: "#fff", border: "none",
+            borderRadius: "4px", padding: "12px 24px", fontSize: "0.8rem",
+            fontWeight: 600, cursor: "pointer", fontFamily: FONT_NAV,
+            textTransform: "uppercase", letterSpacing: "0.1em",
           }}>
-            search
+            Search
           </button>
         </div>
         {(activeFilters.length > 0 || curatorFilter) && (
@@ -1086,14 +1088,14 @@ function SearchView({ playlists }) {
         )}
       </div>
 
-      {/* Tag browser with category tabs — the Cookthink "what are you craving" panel */}
+      {/* Tag browser */}
       <div style={{
-        background: "#faf7f2", border: "1px solid #e0d5c7", borderRadius: "8px",
+        background: HD.warmWhite, border: `1px solid ${HD.rule}`, borderRadius: "6px",
         marginBottom: "24px", overflow: "hidden",
       }}>
         <div style={{ padding: "16px 20px 0" }}>
-          <p style={{ margin: 0, color: "#8a7565", fontSize: "0.85rem" }}>
-            ...or browse by category and click to filter:
+          <p style={{ margin: 0, color: HD.warmGray, fontSize: "0.8rem", fontFamily: FONT_NAV }}>
+            Browse by category:
           </p>
         </div>
 
@@ -1108,19 +1110,20 @@ function SearchView({ playlists }) {
         </div>
 
         <div style={{
-          display: "flex", borderTop: "1px solid #e0d5c7",
-          background: "linear-gradient(to bottom, #e8ddd0, #d9ccbc)",
+          display: "flex", borderTop: `1px solid ${HD.rule}`,
+          background: HD.cream,
         }}>
           {catEntries.map(([key, cat]) => (
             <button
               key={key}
               onClick={() => setActiveCategory(key)}
               style={{
-                flex: 1, background: activeCategory === key ? cat.color : "transparent",
-                color: activeCategory === key ? "#fff" : "#5a4a3a",
-                border: "none", padding: "10px 4px", fontSize: "0.72rem",
+                flex: 1,
+                background: activeCategory === key ? HD.walnut : "transparent",
+                color: activeCategory === key ? "#fff" : HD.warmGray,
+                border: "none", padding: "10px 4px", fontSize: "0.65rem",
                 fontWeight: 600, cursor: "pointer", textTransform: "uppercase",
-                letterSpacing: "0.03em", borderRadius: activeCategory === key ? "0" : "0",
+                letterSpacing: "0.08em", fontFamily: FONT_NAV,
               }}
             >
               {cat.label}
@@ -1156,14 +1159,33 @@ function SearchView({ playlists }) {
 }
 
 // ─── MAIN APP ───────────────────────────────────────────────────────────────
+const FONT_DISPLAY = "'Playfair Display', Georgia, serif";
+const FONT_BODY = "Georgia, 'Times New Roman', serif";
+const FONT_NAV = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif";
+
+// High Dive palette — drawn from the space
+const HD = {
+  black: "#1a1510",         // ceiling, speakers
+  walnut: "#2c1f14",        // dark wood
+  amber: "#c17f24",         // warm lighting, honey wood
+  cork: "#b8916a",          // cork floors
+  oak: "#a07850",           // lighter wood tones
+  green: "#3d6b4f",         // those tufted bar stools
+  greenLight: "#4a7c59",
+  cream: "#f5f2ed",         // website background
+  warmWhite: "#faf8f4",     // cards
+  warmGray: "#8a7d6f",      // secondary text
+  rule: "#d9d0c5",          // thin rules like the website
+};
+
 const inputStyle = {
-  padding: "10px 14px", borderRadius: "6px", border: "1px solid #d5c8b8",
-  fontSize: "0.95rem", fontFamily: "Georgia, serif", background: "#fff", color: "#2c1810",
+  padding: "10px 14px", borderRadius: "4px", border: `1px solid ${HD.rule}`,
+  fontSize: "0.95rem", fontFamily: FONT_BODY, background: "#fff", color: HD.black,
   outline: "none",
 };
 
 const smallBtnStyle = {
-  background: "#8B4513", color: "#fff", border: "none", borderRadius: "6px",
+  background: HD.walnut, color: "#fff", border: "none", borderRadius: "4px",
   padding: "8px 16px", fontSize: "0.85rem", cursor: "pointer", fontWeight: 600,
 };
 
@@ -1174,33 +1196,40 @@ export default function HighDivePlaylistDB() {
   return (
     <div style={{
       maxWidth: "900px", margin: "0 auto", padding: "24px",
-      fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-      color: "#2c1810", minHeight: "100vh", background: "#f0e8dd",
+      fontFamily: FONT_BODY,
+      color: HD.black, minHeight: "100vh", background: HD.cream,
     }}>
       {/* Header */}
       <div style={{ textAlign: "center", marginBottom: "32px" }}>
         <h1 style={{
-          fontFamily: "Georgia, serif", fontSize: "2.2rem", fontWeight: 400,
-          color: "#2c1810", margin: "0 0 4px 0",
+          fontFamily: FONT_DISPLAY, fontSize: "2.4rem", fontWeight: 700,
+          color: HD.black, margin: "0 0 2px 0", letterSpacing: "-0.01em",
         }}>
-          High Dive Playlist Library
+          High Dive
         </h1>
-        <p style={{ color: "#8a7565", margin: "0 0 20px 0", fontFamily: "Georgia, serif" }}>
-          Music selected by a human. Always.
+        <p style={{
+          color: HD.warmGray, margin: "0 0 20px 0",
+          fontFamily: FONT_NAV, fontSize: "0.7rem",
+          textTransform: "uppercase", letterSpacing: "0.2em",
+        }}>
+          Playlist Library
         </p>
 
         {/* View toggle */}
         <div style={{
-          display: "inline-flex", background: "#e0d5c7", borderRadius: "8px", padding: "3px",
+          display: "inline-flex", gap: "0", borderBottom: `2px solid ${HD.rule}`,
         }}>
           <button
             onClick={() => setView("search")}
             style={{
-              background: view === "search" ? "#fff" : "transparent",
-              color: "#2c1810", border: "none", borderRadius: "6px",
-              padding: "8px 24px", fontSize: "0.9rem", cursor: "pointer",
-              fontWeight: view === "search" ? 600 : 400,
-              boxShadow: view === "search" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+              background: "transparent",
+              color: view === "search" ? HD.black : HD.warmGray,
+              border: "none",
+              borderBottom: view === "search" ? `2px solid ${HD.black}` : "2px solid transparent",
+              padding: "8px 24px", fontSize: "0.75rem", cursor: "pointer",
+              fontFamily: FONT_NAV, fontWeight: 600,
+              textTransform: "uppercase", letterSpacing: "0.15em",
+              marginBottom: "-2px",
             }}
           >
             Search
@@ -1208,11 +1237,14 @@ export default function HighDivePlaylistDB() {
           <button
             onClick={() => setView("curate")}
             style={{
-              background: view === "curate" ? "#fff" : "transparent",
-              color: "#2c1810", border: "none", borderRadius: "6px",
-              padding: "8px 24px", fontSize: "0.9rem", cursor: "pointer",
-              fontWeight: view === "curate" ? 600 : 400,
-              boxShadow: view === "curate" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+              background: "transparent",
+              color: view === "curate" ? HD.black : HD.warmGray,
+              border: "none",
+              borderBottom: view === "curate" ? `2px solid ${HD.black}` : "2px solid transparent",
+              padding: "8px 24px", fontSize: "0.75rem", cursor: "pointer",
+              fontFamily: FONT_NAV, fontWeight: 600,
+              textTransform: "uppercase", letterSpacing: "0.15em",
+              marginBottom: "-2px",
             }}
           >
             Curate
@@ -1228,9 +1260,11 @@ export default function HighDivePlaylistDB() {
       {/* Footer */}
       <div style={{
         textAlign: "center", marginTop: "48px", padding: "24px",
-        borderTop: "1px solid #e0d5c7", color: "#8a7565", fontSize: "0.8rem",
+        borderTop: `1px solid ${HD.rule}`, color: HD.warmGray,
+        fontSize: "0.7rem", fontFamily: FONT_NAV,
+        textTransform: "uppercase", letterSpacing: "0.15em",
       }}>
-        High Dive Playlist Library &middot; {playlists.length} playlists &middot; Built for humans who care about what's playing
+        High Dive HiFi Lounge &middot; {playlists.length} playlists &middot; Birmingham, AL
       </div>
     </div>
   );
