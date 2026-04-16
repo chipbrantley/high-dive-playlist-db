@@ -333,15 +333,24 @@ export async function handler(event) {
       return { statusCode: 400, headers, body: JSON.stringify({ error: "Could not parse Spotify playlist URL" }) };
     }
 
-    const clientId = process.env.SPOTIFY_CLIENT_ID;
-    const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
+    const { accessToken } = JSON.parse(event.body);
 
-    if (!clientId || !clientSecret) {
-      return { statusCode: 500, headers, body: JSON.stringify({ error: "Spotify credentials not configured" }) };
+    let token;
+
+    if (accessToken) {
+      // Use the user's OAuth token (preferred — works with Development Mode apps)
+      token = accessToken;
+    } else {
+      // Fall back to Client Credentials (requires approved app for track access)
+      const clientId = process.env.SPOTIFY_CLIENT_ID;
+      const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
+
+      if (!clientId || !clientSecret) {
+        return { statusCode: 500, headers, body: JSON.stringify({ error: "Spotify credentials not configured" }) };
+      }
+
+      token = await getSpotifyToken(clientId, clientSecret);
     }
-
-    // Authenticate
-    const token = await getSpotifyToken(clientId, clientSecret);
 
     // Fetch playlist metadata and tracks separately
     const [playlistMeta, trackItems] = await Promise.all([

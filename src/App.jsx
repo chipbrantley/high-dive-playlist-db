@@ -1,5 +1,20 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import _ from "lodash";
+
+// ─── SPOTIFY AUTH CONFIG ────────────────────────────────────────────────────
+const SPOTIFY_CLIENT_ID = "319e9d25b04645d4bc36700a8c72039b";
+const SPOTIFY_REDIRECT_URI = "https://highdiveplaylists.netlify.app/callback";
+const SPOTIFY_SCOPES = "playlist-read-private playlist-read-collaborative";
+
+function getSpotifyAuthUrl() {
+  const params = new URLSearchParams({
+    client_id: SPOTIFY_CLIENT_ID,
+    response_type: "code",
+    redirect_uri: SPOTIFY_REDIRECT_URI,
+    scope: SPOTIFY_SCOPES,
+  });
+  return `https://accounts.spotify.com/authorize?${params.toString()}`;
+}
 
 // ─── TAG TAXONOMY ───────────────────────────────────────────────────────────
 const TAG_CATEGORIES = {
@@ -431,7 +446,7 @@ const AUTO_TAGGABLE = new Set(["genre", "era", "energy"]);
 // Categories the curator handles manually
 const MANUAL_CATEGORIES = ["timeOfDay", "season", "room", "vibe", "practical"];
 
-function CuratorView({ playlists, setPlaylists }) {
+function CuratorView({ playlists, setPlaylists, spotifyToken }) {
   const [phase, setPhase] = useState(1);
   const [form, setForm] = useState({
     title: "", curator: "Chip", description: "", link: "", tracks: "", runtime: "", tags: [],
@@ -488,7 +503,7 @@ function CuratorView({ playlists, setPlaylists }) {
       const response = await fetch("/.netlify/functions/spotify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ playlistUrl: form.link }),
+        body: JSON.stringify({ playlistUrl: form.link, accessToken: spotifyToken || undefined }),
       });
       const data = await response.json();
       if (!response.ok) {
@@ -650,15 +665,49 @@ function CuratorView({ playlists, setPlaylists }) {
             </div>
           </div>
 
-          {/* Spotify auto-tag hint */}
-          {isSpotifyLink && (
+          {/* Spotify connection and auto-tag hints */}
+          {isSpotifyLink && spotifyToken && (
             <div style={{
               background: "#f0f7f0", border: "1px solid #b8d4b8", borderRadius: "8px",
               padding: "16px 20px", marginBottom: "16px",
               fontSize: "0.85rem", color: "#3a5a3a", fontFamily: "Georgia, serif",
             }}>
-              🎵 Spotify link detected — we'll auto-suggest genre and era tags from the track data when you proceed.
+              🎵 Spotify connected — we'll auto-suggest genre and era tags from the track data when you proceed.
               {!form.title && " We can also pull the playlist name, description, track count, and runtime."}
+            </div>
+          )}
+          {isSpotifyLink && !spotifyToken && (
+            <div style={{
+              background: "#f5f0e8", border: "1px solid #d5c8b8", borderRadius: "8px",
+              padding: "16px 20px", marginBottom: "16px",
+              fontFamily: "Georgia, serif",
+            }}>
+              <div style={{ fontSize: "0.85rem", color: "#5a4a3a", marginBottom: "10px" }}>
+                🎵 Spotify link detected. Connect your Spotify account to auto-suggest genre and era tags.
+              </div>
+              <a
+                href={getSpotifyAuthUrl()}
+                style={{
+                  display: "inline-block",
+                  background: "#1DB954", color: "#fff", border: "none", borderRadius: "20px",
+                  padding: "8px 20px", fontSize: "0.85rem", fontWeight: 600,
+                  cursor: "pointer", textDecoration: "none",
+                }}
+              >
+                Connect Spotify
+              </a>
+              <span style={{ fontSize: "0.8rem", color: "#8a7565", marginLeft: "12px" }}>
+                or skip this and tag manually
+              </span>
+            </div>
+          )}
+          {!isSpotifyLink && form.link && form.link.trim() && (
+            <div style={{
+              background: "#f5f0e8", border: "1px solid #d5c8b8", borderRadius: "8px",
+              padding: "16px 20px", marginBottom: "16px",
+              fontSize: "0.85rem", color: "#5a4a3a", fontFamily: "Georgia, serif",
+            }}>
+              Non-Spotify link detected. Auto-tagging is currently available for Spotify playlists only. You can tag manually in the next step.
             </div>
           )}
           {spotifyError && (
@@ -1129,6 +1178,37 @@ const smallBtnStyle = {
 export default function HighDivePlaylistDB() {
   const [view, setView] = useState("search");
   const [playlists, setPlaylists] = useState(INITIAL_PLAYLISTS);
+  const [spotifyToken, setSpotifyToken] = useState(null);
+  const [spotifyAuthLoading, setSpotifyAuthLoading] = useState(false);
+
+  // Handle Spotify OAuth callback
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const code = url.searchParams.get("code");
+
+    if (code && url.pathname === "/callback") {
+      setSpotifyAuthLoading(true);
+      // Exchange the code for an access token via our serverless function
+      fetch("/.netlify/functions/spotify-token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, redirect_uri: SPOTIFY_REDIRECT_URI }),
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.access_token) {
+            setSpotifyToken(data.access_token);
+            setView("curate");
+          }
+        })
+        .catch(err => console.error("Spotify auth error:", err))
+        .finally(() => {
+          setSpotifyAuthLoading(false);
+          // Clean up the URL
+          window.history.replaceState({}, document.title, "/");
+        });
+    }
+  }, []);
 
   return (
     <div style={{
@@ -1179,9 +1259,18 @@ export default function HighDivePlaylistDB() {
         </div>
       </div>
 
+      {spotifyAuthLoading && (
+        <div style={{
+          textAlign: "center", padding: "24px",
+          color: "#8a7565", fontFamily: "Georgia, serif",
+        }}>
+          Connecting to Spotify...
+        </div>
+      )}
+
       {view === "search"
         ? <SearchView playlists={playlists} />
-        : <CuratorView playlists={playlists} setPlaylists={setPlaylists} />
+        : <CuratorView playlists={playlists} setPlaylists={setPlaylists} spotifyToken={spotifyToken} />
       }
 
       {/* Footer */}
