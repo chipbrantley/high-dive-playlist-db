@@ -16,6 +16,29 @@ function getSpotifyAuthUrl() {
   return `https://accounts.spotify.com/authorize?${params.toString()}`;
 }
 
+// Save/restore form data across OAuth redirects
+function saveFormToSession(form) {
+  try {
+    sessionStorage.setItem("hd_curator_form", JSON.stringify(form));
+  } catch (e) { /* ignore */ }
+}
+
+function restoreFormFromSession() {
+  try {
+    const saved = sessionStorage.getItem("hd_curator_form");
+    if (saved) {
+      sessionStorage.removeItem("hd_curator_form");
+      return JSON.parse(saved);
+    }
+  } catch (e) { /* ignore */ }
+  return null;
+}
+
+function startSpotifyAuth(form) {
+  saveFormToSession(form);
+  window.location.href = getSpotifyAuthUrl();
+}
+
 // ─── TAG TAXONOMY ───────────────────────────────────────────────────────────
 const TAG_CATEGORIES = {
   genre: {
@@ -446,11 +469,11 @@ const AUTO_TAGGABLE = new Set(["genre", "era", "energy"]);
 // Categories the curator handles manually
 const MANUAL_CATEGORIES = ["timeOfDay", "season", "room", "vibe", "practical"];
 
-function CuratorView({ playlists, setPlaylists, spotifyToken }) {
+function CuratorView({ playlists, setPlaylists, spotifyToken, restoredForm }) {
   const [phase, setPhase] = useState(1);
-  const [form, setForm] = useState({
-    title: "", curator: "Chip", description: "", link: "", tracks: "", runtime: "", tags: [],
-  });
+  const [form, setForm] = useState(
+    restoredForm || { title: "", curator: "Chip", description: "", link: "", tracks: "", runtime: "", tags: [] }
+  );
   const [autoTags, setAutoTags] = useState([]); // Tags auto-suggested from Spotify
   const [spotifyLoading, setSpotifyLoading] = useState(false);
   const [spotifyError, setSpotifyError] = useState("");
@@ -499,6 +522,7 @@ function CuratorView({ playlists, setPlaylists, spotifyToken }) {
   const fetchSpotifyData = async () => {
     setSpotifyLoading(true);
     setSpotifyError("");
+    console.log("[HD] Fetching Spotify data...", { link: form.link, hasToken: !!spotifyToken });
     try {
       const response = await fetch("/.netlify/functions/spotify", {
         method: "POST",
@@ -506,6 +530,7 @@ function CuratorView({ playlists, setPlaylists, spotifyToken }) {
         body: JSON.stringify({ playlistUrl: form.link, accessToken: spotifyToken || undefined }),
       });
       const data = await response.json();
+      console.log("[HD] Spotify response:", data);
       if (!response.ok) {
         throw new Error(data.error || "Failed to fetch playlist data");
       }
@@ -685,17 +710,17 @@ function CuratorView({ playlists, setPlaylists, spotifyToken }) {
               <div style={{ fontSize: "0.85rem", color: "#5a4a3a", marginBottom: "10px" }}>
                 🎵 Spotify link detected. Connect your Spotify account to auto-suggest genre and era tags.
               </div>
-              <a
-                href={getSpotifyAuthUrl()}
+              <button
+                onClick={() => startSpotifyAuth(form)}
                 style={{
                   display: "inline-block",
                   background: "#1DB954", color: "#fff", border: "none", borderRadius: "20px",
                   padding: "8px 20px", fontSize: "0.85rem", fontWeight: 600,
-                  cursor: "pointer", textDecoration: "none",
+                  cursor: "pointer",
                 }}
               >
                 Connect Spotify
-              </a>
+              </button>
               <span style={{ fontSize: "0.8rem", color: "#8a7565", marginLeft: "12px" }}>
                 or skip this and tag manually
               </span>
@@ -1180,6 +1205,7 @@ export default function HighDivePlaylistDB() {
   const [playlists, setPlaylists] = useState(INITIAL_PLAYLISTS);
   const [spotifyToken, setSpotifyToken] = useState(null);
   const [spotifyAuthLoading, setSpotifyAuthLoading] = useState(false);
+  const [restoredForm, setRestoredForm] = useState(null);
 
   // Handle Spotify OAuth callback
   useEffect(() => {
@@ -1188,6 +1214,13 @@ export default function HighDivePlaylistDB() {
 
     if (code && url.pathname === "/callback") {
       setSpotifyAuthLoading(true);
+
+      // Restore form data that was saved before redirect
+      const savedForm = restoreFormFromSession();
+      if (savedForm) {
+        setRestoredForm(savedForm);
+      }
+
       // Exchange the code for an access token via our serverless function
       fetch("/.netlify/functions/spotify-token", {
         method: "POST",
@@ -1199,6 +1232,8 @@ export default function HighDivePlaylistDB() {
           if (data.access_token) {
             setSpotifyToken(data.access_token);
             setView("curate");
+          } else {
+            console.error("Spotify token exchange returned no token:", data);
           }
         })
         .catch(err => console.error("Spotify auth error:", err))
@@ -1270,7 +1305,7 @@ export default function HighDivePlaylistDB() {
 
       {view === "search"
         ? <SearchView playlists={playlists} />
-        : <CuratorView playlists={playlists} setPlaylists={setPlaylists} spotifyToken={spotifyToken} />
+        : <CuratorView playlists={playlists} setPlaylists={setPlaylists} spotifyToken={spotifyToken} restoredForm={restoredForm} />
       }
 
       {/* Footer */}
