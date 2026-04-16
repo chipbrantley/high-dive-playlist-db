@@ -421,7 +421,7 @@ function TagCloud({ tags, activeTags, onToggle, color }) {
   );
 }
 
-function PlaylistCard({ playlist, allCategories }) {
+function PlaylistCard({ playlist, allCategories, onCuratorClick }) {
   const [expanded, setExpanded] = useState(false);
 
   // Group the playlist's tags by category
@@ -468,7 +468,18 @@ function PlaylistCard({ playlist, allCategories }) {
             {playlist.title}
           </h3>
           <div style={{ fontSize: "0.8rem", color: "#8a7565", marginBottom: "8px" }}>
-            {playlist.curator} &middot; {playlist.tracks} tracks &middot; {playlist.runtime}
+            <span
+              onClick={onCuratorClick ? (e) => { e.stopPropagation(); onCuratorClick(playlist.curator); } : undefined}
+              style={onCuratorClick ? {
+                color: "#8B4513", cursor: "pointer", textDecoration: "underline",
+                textDecorationColor: "#d5c8b8",
+              } : {}}
+              onMouseEnter={onCuratorClick ? (e) => { e.target.style.textDecorationColor = "#8B4513"; } : undefined}
+              onMouseLeave={onCuratorClick ? (e) => { e.target.style.textDecorationColor = "#d5c8b8"; } : undefined}
+            >
+              {playlist.curator}
+            </span>
+            {" "}&middot; {playlist.tracks} tracks &middot; {playlist.runtime}
           </div>
           <p style={{ margin: 0, color: "#5a4a3a", fontSize: "0.9rem", lineHeight: 1.5, fontFamily: "Georgia, serif" }}>
             {playlist.description}
@@ -989,6 +1000,7 @@ function SearchView({ playlists }) {
   const [query, setQuery] = useState("");
   const [activeFilters, setActiveFilters] = useState([]);
   const [activeCategory, setActiveCategory] = useState("vibe");
+  const [curatorFilter, setCuratorFilter] = useState(null);
 
   const toggleFilter = useCallback((tag) => {
     setActiveFilters(prev =>
@@ -996,9 +1008,14 @@ function SearchView({ playlists }) {
     );
   }, []);
 
+  // Apply curator filter first, then search within those results
+  const filteredByCurator = curatorFilter
+    ? playlists.filter(pl => pl.curator === curatorFilter)
+    : playlists;
+
   const results = useMemo(
-    () => searchPlaylists(playlists, query, activeFilters),
-    [playlists, query, activeFilters]
+    () => searchPlaylists(filteredByCurator, query, activeFilters),
+    [filteredByCurator, query, activeFilters]
   );
 
   const showAll = !query.trim() && activeFilters.length === 0;
@@ -1038,8 +1055,17 @@ function SearchView({ playlists }) {
             search
           </button>
         </div>
-        {activeFilters.length > 0 && (
+        {(activeFilters.length > 0 || curatorFilter) && (
           <div style={{ marginTop: "12px", display: "flex", flexWrap: "wrap", gap: "6px", justifyContent: "center" }}>
+            {curatorFilter && (
+              <span onClick={() => setCuratorFilter(null)} style={{
+                background: "rgba(139,69,19,0.6)", color: "#f5e6d3",
+                borderRadius: "4px", padding: "3px 10px", fontSize: "0.8rem",
+                cursor: "pointer", fontWeight: 600,
+              }}>
+                Curator: {curatorFilter} &times;
+              </span>
+            )}
             {activeFilters.map(f => (
               <span key={f} onClick={() => toggleFilter(f)} style={{
                 background: "rgba(255,255,255,0.2)", color: "#f5e6d3",
@@ -1050,7 +1076,7 @@ function SearchView({ playlists }) {
               </span>
             ))}
             <span
-              onClick={() => setActiveFilters([])}
+              onClick={() => { setActiveFilters([]); setCuratorFilter(null); }}
               style={{ color: "#f5e6d3", fontSize: "0.8rem", cursor: "pointer", padding: "3px 8px", textDecoration: "underline" }}
             >
               clear all
@@ -1106,12 +1132,14 @@ function SearchView({ playlists }) {
       <div>
         <div style={{ fontSize: "0.85rem", color: "#8a7565", marginBottom: "12px" }}>
           {showAll
-            ? `All playlists (${playlists.length})`
-            : `${results.length} playlist${results.length !== 1 ? "s" : ""} found`
+            ? curatorFilter
+              ? `${filteredByCurator.length} playlist${filteredByCurator.length !== 1 ? "s" : ""} by ${curatorFilter}`
+              : `All playlists (${playlists.length})`
+            : `${results.length} playlist${results.length !== 1 ? "s" : ""} found${curatorFilter ? ` by ${curatorFilter}` : ""}`
           }
         </div>
-        {(showAll ? playlists : results).map(pl => (
-          <PlaylistCard key={pl.id} playlist={pl} allCategories={TAG_CATEGORIES} />
+        {(showAll ? filteredByCurator : results).map(pl => (
+          <PlaylistCard key={pl.id} playlist={pl} allCategories={TAG_CATEGORIES} onCuratorClick={setCuratorFilter} />
         ))}
         {!showAll && results.length === 0 && (
           <div style={{
