@@ -346,9 +346,10 @@ function searchPlaylists(playlists, query, activeFilters) {
           else if (tag.includes(word)) score += 1;
         });
 
-        // Title/description match
+        // Title/description/curator match
         if (pl.title.toLowerCase().includes(word)) score += 1.5;
         if (pl.description.toLowerCase().includes(word)) score += 0.5;
+        if (pl.curator && pl.curator.toLowerCase().includes(word)) score += 2;
 
         // Synonym expansion
         if (SYNONYM_MAP[word]) {
