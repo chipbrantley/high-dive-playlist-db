@@ -426,11 +426,18 @@ function PlaylistCard({ playlist, allCategories }) {
   );
 }
 
+// Categories that can be auto-tagged from Spotify API data
+const AUTO_TAGGABLE = new Set(["genre", "era", "energy"]);
+// Categories the curator handles manually
+const MANUAL_CATEGORIES = ["timeOfDay", "season", "room", "vibe", "practical"];
+
 function CuratorView({ playlists, setPlaylists }) {
+  const [phase, setPhase] = useState(1);
   const [form, setForm] = useState({
     title: "", curator: "Chip", description: "", link: "", tracks: "", runtime: "", tags: [],
   });
-  const [activeCategory, setActiveCategory] = useState("genre");
+  const [autoTags, setAutoTags] = useState([]); // Tags that would be auto-assigned
+  const [activeCategory, setActiveCategory] = useState("timeOfDay");
   const [suggestTag, setSuggestTag] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [saved, setSaved] = useState(false);
@@ -460,167 +467,419 @@ function CuratorView({ playlists, setPlaylists }) {
     };
     setPlaylists(prev => [...prev, newPlaylist]);
     setForm({ title: "", curator: "Chip", description: "", link: "", tracks: "", runtime: "", tags: [] });
+    setAutoTags([]);
     setSuggestions([]);
+    setPhase(1);
     setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setTimeout(() => setSaved(false), 3000);
   };
 
-  const catEntries = Object.entries(TAG_CATEGORIES);
+  const goToPhase2 = () => {
+    if (!form.title.trim()) return;
+    // In the future, this is where we'd call the Spotify API to auto-tag genre/era/energy.
+    // For now, we move to phase 2 with all categories available for manual tagging.
+    setPhase(2);
+    setActiveCategory("timeOfDay");
+  };
+
+  const goBackToPhase1 = () => {
+    setPhase(1);
+  };
+
+  // Which categories to show in phase 2 tagging
+  // Auto-taggable ones appear in a separate "review" section; manual ones are the main focus
+  const manualCatEntries = Object.entries(TAG_CATEGORIES).filter(([key]) => MANUAL_CATEGORIES.includes(key));
+  const autoCatEntries = Object.entries(TAG_CATEGORIES).filter(([key]) => AUTO_TAGGABLE.has(key));
 
   return (
     <div>
+      {/* Phase indicator */}
       <div style={{
-        background: "#faf7f2", border: "1px solid #e0d5c7", borderRadius: "8px", padding: "24px", marginBottom: "24px",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        gap: "12px", marginBottom: "24px",
       }}>
-        <h3 style={{ margin: "0 0 16px 0", fontFamily: "Georgia, serif", color: "#2c1810" }}>Playlist Details</h3>
-
-        <div style={{ display: "grid", gap: "12px" }}>
-          <input
-            type="text" placeholder="Playlist title" value={form.title}
-            onChange={e => setForm(p => ({ ...p, title: e.target.value }))}
-            style={inputStyle}
-          />
-          <textarea
-            placeholder="Description / story behind this playlist" value={form.description}
-            onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
-            rows={3} style={{ ...inputStyle, resize: "vertical" }}
-          />
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "12px" }}>
-            <input
-              type="text" placeholder="Curator name" value={form.curator}
-              onChange={e => setForm(p => ({ ...p, curator: e.target.value }))}
-              style={inputStyle}
-            />
-            <input
-              type="text" placeholder="Spotify / Apple Music link" value={form.link}
-              onChange={e => setForm(p => ({ ...p, link: e.target.value }))}
-              style={inputStyle}
-            />
-            <input
-              type="text" placeholder="# of tracks" value={form.tracks}
-              onChange={e => setForm(p => ({ ...p, tracks: e.target.value }))}
-              style={inputStyle}
-            />
-            <input
-              type="text" placeholder="Runtime (e.g. 1hr 30min)" value={form.runtime}
-              onChange={e => setForm(p => ({ ...p, runtime: e.target.value }))}
-              style={inputStyle}
-            />
+        <div style={{
+          display: "flex", alignItems: "center", gap: "8px",
+          opacity: phase === 1 ? 1 : 0.5,
+        }}>
+          <div style={{
+            width: "28px", height: "28px", borderRadius: "50%",
+            background: phase === 1 ? "#8B4513" : "#2E8B57",
+            color: "#fff", display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: "0.8rem", fontWeight: 600,
+          }}>
+            {phase > 1 ? "✓" : "1"}
           </div>
+          <span style={{
+            fontSize: "0.85rem", fontWeight: phase === 1 ? 600 : 400,
+            color: "#2c1810", fontFamily: "Georgia, serif",
+          }}>
+            Playlist Details
+          </span>
+        </div>
+        <div style={{ width: "40px", height: "2px", background: phase >= 2 ? "#8B4513" : "#d5c8b8" }} />
+        <div style={{
+          display: "flex", alignItems: "center", gap: "8px",
+          opacity: phase === 2 ? 1 : 0.5,
+        }}>
+          <div style={{
+            width: "28px", height: "28px", borderRadius: "50%",
+            background: phase === 2 ? "#8B4513" : "#d5c8b8",
+            color: phase === 2 ? "#fff" : "#8a7565",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: "0.8rem", fontWeight: 600,
+          }}>
+            2
+          </div>
+          <span style={{
+            fontSize: "0.85rem", fontWeight: phase === 2 ? 600 : 400,
+            color: phase === 2 ? "#2c1810" : "#8a7565", fontFamily: "Georgia, serif",
+          }}>
+            Tag the Vibe
+          </span>
         </div>
       </div>
 
-      {/* Tag selection */}
-      <div style={{
-        background: "#faf7f2", border: "1px solid #e0d5c7", borderRadius: "8px", overflow: "hidden",
-      }}>
-        <div style={{ padding: "20px 24px 0" }}>
-          <h3 style={{ margin: "0 0 4px 0", fontFamily: "Georgia, serif", color: "#2c1810" }}>Tag this playlist</h3>
-          <p style={{ margin: "0 0 12px 0", color: "#8a7565", fontSize: "0.85rem" }}>
-            Click tags to select them. Use the tabs to browse categories.
-          </p>
-        </div>
+      {/* ─── PHASE 1: Playlist Details ─── */}
+      {phase === 1 && (
+        <div>
+          <div style={{
+            background: "#faf7f2", border: "1px solid #e0d5c7", borderRadius: "8px", padding: "24px", marginBottom: "24px",
+          }}>
+            <h3 style={{ margin: "0 0 4px 0", fontFamily: "Georgia, serif", color: "#2c1810" }}>Tell us about the playlist</h3>
+            <p style={{ margin: "0 0 16px 0", color: "#8a7565", fontSize: "0.85rem" }}>
+              Basic info first. We'll handle tags in the next step.
+            </p>
 
-        {/* Category tabs */}
-        <div style={{
-          display: "flex", gap: "0", borderBottom: "1px solid #e0d5c7", overflowX: "auto",
-          padding: "0 24px",
-        }}>
-          {catEntries.map(([key, cat]) => (
+            <div style={{ display: "grid", gap: "12px" }}>
+              <input
+                type="text" placeholder="Playlist title" value={form.title}
+                onChange={e => setForm(p => ({ ...p, title: e.target.value }))}
+                style={inputStyle}
+              />
+              <textarea
+                placeholder="Description / story behind this playlist — what's the vibe? what inspired it?"
+                value={form.description}
+                onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
+                rows={4} style={{ ...inputStyle, resize: "vertical" }}
+              />
+              <input
+                type="text" placeholder="Spotify or Apple Music link"
+                value={form.link}
+                onChange={e => setForm(p => ({ ...p, link: e.target.value }))}
+                style={inputStyle}
+              />
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" }}>
+                <input
+                  type="text" placeholder="Curator name" value={form.curator}
+                  onChange={e => setForm(p => ({ ...p, curator: e.target.value }))}
+                  style={inputStyle}
+                />
+                <input
+                  type="text" placeholder="# of tracks" value={form.tracks}
+                  onChange={e => setForm(p => ({ ...p, tracks: e.target.value }))}
+                  style={inputStyle}
+                />
+                <input
+                  type="text" placeholder="Runtime (e.g. 1hr 30min)" value={form.runtime}
+                  onChange={e => setForm(p => ({ ...p, runtime: e.target.value }))}
+                  style={inputStyle}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Spotify auto-tag hint */}
+          {form.link && form.link.includes("spotify") && (
+            <div style={{
+              background: "#f0f7f0", border: "1px solid #b8d4b8", borderRadius: "8px",
+              padding: "16px 20px", marginBottom: "16px",
+              fontSize: "0.85rem", color: "#3a5a3a", fontFamily: "Georgia, serif",
+            }}>
+              🎵 Spotify link detected — in a future update, we'll auto-suggest genre, era, and energy tags from the track data.
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
             <button
-              key={key}
-              onClick={() => setActiveCategory(key)}
+              onClick={goToPhase2}
+              disabled={!form.title.trim()}
               style={{
-                background: activeCategory === key ? cat.color : "transparent",
-                color: activeCategory === key ? "#fff" : "#5a4a3a",
-                border: "none",
-                borderRadius: "6px 6px 0 0",
-                padding: "8px 16px",
-                fontSize: "0.8rem",
-                fontWeight: 600,
-                cursor: "pointer",
-                textTransform: "uppercase",
-                letterSpacing: "0.03em",
-                whiteSpace: "nowrap",
+                background: form.title.trim() ? "#8B4513" : "#ccc",
+                color: "#fff", border: "none", borderRadius: "6px",
+                padding: "12px 32px", fontSize: "1rem", fontWeight: 600,
+                cursor: form.title.trim() ? "pointer" : "default",
+                fontFamily: "Georgia, serif",
               }}
             >
-              {cat.label}
+              Next: Tag the Vibe →
             </button>
-          ))}
-        </div>
-
-        {/* Tag cloud for active category */}
-        <div style={{ padding: "12px 24px 16px" }}>
-          <TagCloud
-            tags={TAG_CATEGORIES[activeCategory].tags}
-            activeTags={form.tags}
-            onToggle={toggleTag}
-            color={TAG_CATEGORIES[activeCategory].color}
-          />
-
-          {/* Suggest new tag */}
-          <div style={{ display: "flex", gap: "8px", marginTop: "12px", alignItems: "center" }}>
-            <input
-              type="text"
-              placeholder={`Suggest a new ${TAG_CATEGORIES[activeCategory].label.toLowerCase()} tag...`}
-              value={suggestTag}
-              onChange={e => setSuggestTag(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && handleSuggest()}
-              style={{ ...inputStyle, flex: 1, fontSize: "0.85rem" }}
-            />
-            <button onClick={handleSuggest} style={smallBtnStyle}>+ Add</button>
+            {!form.title.trim() && (
+              <span style={{ fontSize: "0.8rem", color: "#8a7565" }}>
+                Add a title to continue
+              </span>
+            )}
           </div>
-          {suggestions.length > 0 && (
-            <div style={{ fontSize: "0.8rem", color: "#8a7565", marginTop: "8px" }}>
-              Suggested: {suggestions.join(", ")}
+
+          {saved && (
+            <div style={{
+              marginTop: "16px", padding: "12px 20px", background: "#f0f7f0",
+              border: "1px solid #b8d4b8", borderRadius: "8px",
+              color: "#2E8B57", fontWeight: 600, fontSize: "0.9rem",
+            }}>
+              ✓ Playlist saved! Add another or switch to Search.
             </div>
           )}
         </div>
-      </div>
+      )}
 
-      {/* Selected tags summary */}
-      {form.tags.length > 0 && (
-        <div style={{
-          background: "#faf7f2", border: "1px solid #e0d5c7", borderRadius: "8px",
-          padding: "16px 24px", marginTop: "16px",
-        }}>
-          <div style={{ fontSize: "0.8rem", color: "#8a7565", marginBottom: "8px", fontWeight: 600 }}>
-            {form.tags.length} tags selected:
-          </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-            {form.tags.map(tag => (
-              <span
-                key={tag}
-                onClick={() => toggleTag(tag)}
-                style={{
-                  background: "#8B4513", color: "#fff", borderRadius: "4px",
-                  padding: "3px 10px", fontSize: "0.8rem", cursor: "pointer",
-                }}
-              >
-                {tag} &times;
+      {/* ─── PHASE 2: Tagging ─── */}
+      {phase === 2 && (
+        <div>
+          {/* Summary of phase 1 */}
+          <div style={{
+            background: "#faf7f2", border: "1px solid #e0d5c7", borderRadius: "8px",
+            padding: "16px 20px", marginBottom: "20px",
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+          }}>
+            <div>
+              <h3 style={{ margin: "0 0 2px 0", fontFamily: "Georgia, serif", color: "#2c1810", fontSize: "1.05rem" }}>
+                {form.title}
+              </h3>
+              <span style={{ fontSize: "0.8rem", color: "#8a7565" }}>
+                {form.curator}{form.tracks ? ` · ${form.tracks} tracks` : ""}{form.runtime ? ` · ${form.runtime}` : ""}
               </span>
-            ))}
+            </div>
+            <button
+              onClick={goBackToPhase1}
+              style={{
+                background: "transparent", border: "1px solid #d5c8b8", borderRadius: "6px",
+                padding: "6px 14px", fontSize: "0.8rem", cursor: "pointer", color: "#5a4a3a",
+              }}
+            >
+              ← Edit Details
+            </button>
+          </div>
+
+          {/* Auto-taggable categories (genre, era, energy) — manual for now */}
+          <div style={{
+            background: "#faf7f2", border: "1px solid #e0d5c7", borderRadius: "8px",
+            overflow: "hidden", marginBottom: "20px",
+          }}>
+            <div style={{ padding: "16px 24px 0" }}>
+              <h3 style={{ margin: "0 0 4px 0", fontFamily: "Georgia, serif", color: "#2c1810", fontSize: "1rem" }}>
+                Musical DNA
+              </h3>
+              <p style={{ margin: "0 0 8px 0", color: "#8a7565", fontSize: "0.8rem" }}>
+                Genre, era, and energy — these will be auto-suggested from Spotify data in a future update. For now, tag manually.
+              </p>
+            </div>
+
+            {/* Auto-taggable category tabs */}
+            <div style={{
+              display: "flex", gap: "0", borderBottom: "1px solid #e0d5c7", overflowX: "auto",
+              padding: "0 24px",
+            }}>
+              {autoCatEntries.map(([key, cat]) => {
+                const isAutoActive = AUTO_TAGGABLE.has(key) &&
+                  ((!MANUAL_CATEGORIES.includes(activeCategory) && activeCategory === key) ||
+                   (MANUAL_CATEGORIES.includes(activeCategory) && key === "genre"));
+                const showThis = !MANUAL_CATEGORIES.includes(activeCategory) && activeCategory === key;
+                return (
+                  <button
+                    key={key}
+                    onClick={() => setActiveCategory(key)}
+                    style={{
+                      background: showThis ? cat.color : "transparent",
+                      color: showThis ? "#fff" : "#5a4a3a",
+                      border: "none",
+                      borderRadius: "6px 6px 0 0",
+                      padding: "8px 16px",
+                      fontSize: "0.8rem",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.03em",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {cat.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {!MANUAL_CATEGORIES.includes(activeCategory) && (
+              <div style={{ padding: "12px 24px 16px" }}>
+                <TagCloud
+                  tags={TAG_CATEGORIES[activeCategory].tags}
+                  activeTags={form.tags}
+                  onToggle={toggleTag}
+                  color={TAG_CATEGORIES[activeCategory].color}
+                />
+                <div style={{ display: "flex", gap: "8px", marginTop: "12px", alignItems: "center" }}>
+                  <input
+                    type="text"
+                    placeholder={`Suggest a new ${TAG_CATEGORIES[activeCategory].label.toLowerCase()} tag...`}
+                    value={suggestTag}
+                    onChange={e => setSuggestTag(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && handleSuggest()}
+                    style={{ ...inputStyle, flex: 1, fontSize: "0.85rem" }}
+                  />
+                  <button onClick={handleSuggest} style={smallBtnStyle}>+ Add</button>
+                </div>
+              </div>
+            )}
+
+            {MANUAL_CATEGORIES.includes(activeCategory) && (
+              <div style={{ padding: "12px 24px 16px", color: "#8a7565", fontSize: "0.85rem" }}>
+                Select a tab above to tag genre, era, or energy.
+              </div>
+            )}
+          </div>
+
+          {/* Manual categories — the human stuff */}
+          <div style={{
+            background: "#faf7f2", border: "1px solid #e0d5c7", borderRadius: "8px",
+            overflow: "hidden", marginBottom: "20px",
+          }}>
+            <div style={{ padding: "16px 24px 0" }}>
+              <h3 style={{ margin: "0 0 4px 0", fontFamily: "Georgia, serif", color: "#2c1810", fontSize: "1rem" }}>
+                The Human Stuff
+              </h3>
+              <p style={{ margin: "0 0 8px 0", color: "#8a7565", fontSize: "0.8rem" }}>
+                Only a person who's been in the room can answer these. When should this play? What does it feel like?
+              </p>
+            </div>
+
+            {/* Manual category tabs */}
+            <div style={{
+              display: "flex", gap: "0", borderBottom: "1px solid #e0d5c7", overflowX: "auto",
+              padding: "0 24px",
+            }}>
+              {manualCatEntries.map(([key, cat]) => {
+                const showThis = activeCategory === key;
+                return (
+                  <button
+                    key={key}
+                    onClick={() => setActiveCategory(key)}
+                    style={{
+                      background: showThis ? cat.color : "transparent",
+                      color: showThis ? "#fff" : "#5a4a3a",
+                      border: "none",
+                      borderRadius: "6px 6px 0 0",
+                      padding: "8px 16px",
+                      fontSize: "0.8rem",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.03em",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {cat.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {MANUAL_CATEGORIES.includes(activeCategory) && (
+              <div style={{ padding: "12px 24px 16px" }}>
+                <TagCloud
+                  tags={TAG_CATEGORIES[activeCategory].tags}
+                  activeTags={form.tags}
+                  onToggle={toggleTag}
+                  color={TAG_CATEGORIES[activeCategory].color}
+                />
+                <div style={{ display: "flex", gap: "8px", marginTop: "12px", alignItems: "center" }}>
+                  <input
+                    type="text"
+                    placeholder={`Suggest a new ${TAG_CATEGORIES[activeCategory].label.toLowerCase()} tag...`}
+                    value={suggestTag}
+                    onChange={e => setSuggestTag(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && handleSuggest()}
+                    style={{ ...inputStyle, flex: 1, fontSize: "0.85rem" }}
+                  />
+                  <button onClick={handleSuggest} style={smallBtnStyle}>+ Add</button>
+                </div>
+              </div>
+            )}
+
+            {!MANUAL_CATEGORIES.includes(activeCategory) && (
+              <div style={{ padding: "12px 24px 16px", color: "#8a7565", fontSize: "0.85rem" }}>
+                Select a tab above to tag time, season, room, vibe, or practical details.
+              </div>
+            )}
+          </div>
+
+          {suggestions.length > 0 && (
+            <div style={{
+              fontSize: "0.8rem", color: "#8a7565", marginBottom: "12px",
+              background: "#faf7f2", border: "1px solid #e0d5c7", borderRadius: "8px",
+              padding: "12px 20px",
+            }}>
+              <span style={{ fontWeight: 600 }}>Suggested tags: </span>{suggestions.join(", ")}
+            </div>
+          )}
+
+          {/* Selected tags summary */}
+          {form.tags.length > 0 && (
+            <div style={{
+              background: "#faf7f2", border: "1px solid #e0d5c7", borderRadius: "8px",
+              padding: "16px 24px", marginBottom: "16px",
+            }}>
+              <div style={{ fontSize: "0.8rem", color: "#8a7565", marginBottom: "8px", fontWeight: 600 }}>
+                {form.tags.length} tags selected:
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                {form.tags.map(tag => (
+                  <span
+                    key={tag}
+                    onClick={() => toggleTag(tag)}
+                    style={{
+                      background: "#8B4513", color: "#fff", borderRadius: "4px",
+                      padding: "3px 10px", fontSize: "0.8rem", cursor: "pointer",
+                    }}
+                  >
+                    {tag} &times;
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Action buttons */}
+          <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+            <button
+              onClick={goBackToPhase1}
+              style={{
+                background: "transparent", border: "1px solid #d5c8b8",
+                borderRadius: "6px", padding: "12px 24px", fontSize: "1rem",
+                cursor: "pointer", color: "#5a4a3a", fontFamily: "Georgia, serif",
+              }}
+            >
+              ← Back
+            </button>
+            <button
+              onClick={handleSave}
+              style={{
+                background: "#8B4513",
+                color: "#fff", border: "none", borderRadius: "6px",
+                padding: "12px 32px", fontSize: "1rem", fontWeight: 600,
+                cursor: "pointer",
+                fontFamily: "Georgia, serif",
+              }}
+            >
+              Save Playlist
+            </button>
+            {form.tags.length === 0 && (
+              <span style={{ fontSize: "0.8rem", color: "#8a7565" }}>
+                You can save without tags, but the more you tag, the better search works
+              </span>
+            )}
           </div>
         </div>
       )}
-
-      {/* Save button */}
-      <div style={{ marginTop: "16px", display: "flex", gap: "12px", alignItems: "center" }}>
-        <button
-          onClick={handleSave}
-          disabled={!form.title.trim()}
-          style={{
-            background: form.title.trim() ? "#8B4513" : "#ccc",
-            color: "#fff", border: "none", borderRadius: "6px",
-            padding: "12px 32px", fontSize: "1rem", fontWeight: 600,
-            cursor: form.title.trim() ? "pointer" : "default",
-            fontFamily: "Georgia, serif",
-          }}
-        >
-          Save Playlist
-        </button>
-        {saved && <span style={{ color: "#2E8B57", fontWeight: 600 }}>Saved!</span>}
-      </div>
     </div>
   );
 }
