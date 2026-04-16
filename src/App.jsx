@@ -426,8 +426,10 @@ function TagCloud({ tags, activeTags, onToggle, color }) {
   );
 }
 
-function PlaylistCard({ playlist, allCategories, onCuratorClick }) {
+function PlaylistCard({ playlist, allCategories, onCuratorClick, onUpdateDescription }) {
   const [expanded, setExpanded] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draftDesc, setDraftDesc] = useState(playlist.description);
 
   // Group the playlist's tags by category
   const tagsByCategory = useMemo(() => {
@@ -486,9 +488,60 @@ function PlaylistCard({ playlist, allCategories, onCuratorClick }) {
             </span>
             {" "}&middot; {playlist.tracks} tracks &middot; {playlist.runtime}
           </div>
-          <p style={{ margin: 0, color: "#4a3f34", fontSize: "0.9rem", lineHeight: 1.6, fontFamily: FONT_BODY }}>
-            {playlist.description}
-          </p>
+          {editing ? (
+            <div onClick={e => e.stopPropagation()} style={{ marginTop: "4px" }}>
+              <textarea
+                value={draftDesc}
+                onChange={e => setDraftDesc(e.target.value)}
+                autoFocus
+                style={{
+                  width: "100%", minHeight: "80px", padding: "8px", fontSize: "0.9rem",
+                  lineHeight: 1.6, fontFamily: FONT_BODY, color: "#4a3f34",
+                  border: `1px solid ${HD.amber}`, borderRadius: "4px", background: HD.cream,
+                  resize: "vertical", outline: "none", boxSizing: "border-box",
+                }}
+              />
+              <div style={{ display: "flex", gap: "8px", marginTop: "6px" }}>
+                <button onClick={() => {
+                  onUpdateDescription(playlist.id, draftDesc);
+                  setEditing(false);
+                }} style={{
+                  background: HD.amber, color: "#fff", border: "none", borderRadius: "4px",
+                  padding: "4px 14px", fontSize: "0.75rem", fontFamily: FONT_NAV, cursor: "pointer",
+                  textTransform: "uppercase", letterSpacing: "0.05em",
+                }}>Save</button>
+                <button onClick={() => {
+                  setDraftDesc(playlist.description);
+                  setEditing(false);
+                }} style={{
+                  background: "transparent", color: HD.warmGray, border: `1px solid ${HD.rule}`,
+                  borderRadius: "4px", padding: "4px 14px", fontSize: "0.75rem", fontFamily: FONT_NAV,
+                  cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.05em",
+                }}>Cancel</button>
+              </div>
+            </div>
+          ) : (
+            <p style={{
+              margin: 0, color: "#4a3f34", fontSize: "0.9rem", lineHeight: 1.6, fontFamily: FONT_BODY,
+              position: "relative",
+            }}>
+              {playlist.description}
+              {onUpdateDescription && (
+                <span
+                  onClick={e => { e.stopPropagation(); setEditing(true); }}
+                  style={{
+                    marginLeft: "8px", color: HD.amber, cursor: "pointer", fontSize: "0.75rem",
+                    fontFamily: FONT_NAV, textTransform: "uppercase", letterSpacing: "0.04em",
+                    opacity: 0.7,
+                  }}
+                  onMouseEnter={e => e.target.style.opacity = 1}
+                  onMouseLeave={e => e.target.style.opacity = 0.7}
+                >
+                  edit
+                </span>
+              )}
+            </p>
+          )}
         </div>
         {playlist.score !== undefined && (
           <div style={{
@@ -1002,11 +1055,15 @@ function CuratorView({ playlists, setPlaylists }) {
   );
 }
 
-function SearchView({ playlists }) {
+function SearchView({ playlists, setPlaylists }) {
   const [query, setQuery] = useState("");
   const [activeFilters, setActiveFilters] = useState([]);
   const [activeCategory, setActiveCategory] = useState("vibe");
   const [curatorFilter, setCuratorFilter] = useState(null);
+
+  const handleUpdateDescription = useCallback((id, newDesc) => {
+    setPlaylists(prev => prev.map(pl => pl.id === id ? { ...pl, description: newDesc } : pl));
+  }, [setPlaylists]);
 
   const toggleFilter = useCallback((tag) => {
     setActiveFilters(prev =>
@@ -1147,7 +1204,7 @@ function SearchView({ playlists }) {
           }
         </div>
         {(showAll ? filteredByCurator : results).map(pl => (
-          <PlaylistCard key={pl.id} playlist={pl} allCategories={TAG_CATEGORIES} onCuratorClick={setCuratorFilter} />
+          <PlaylistCard key={pl.id} playlist={pl} allCategories={TAG_CATEGORIES} onCuratorClick={setCuratorFilter} onUpdateDescription={handleUpdateDescription} />
         ))}
         {!showAll && results.length === 0 && (
           <div style={{
@@ -1257,7 +1314,7 @@ export default function HighDivePlaylistDB() {
       </div>
 
       {view === "search"
-        ? <SearchView playlists={playlists} />
+        ? <SearchView playlists={playlists} setPlaylists={setPlaylists} />
         : <CuratorView playlists={playlists} setPlaylists={setPlaylists} />
       }
 
