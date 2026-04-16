@@ -426,10 +426,12 @@ function TagCloud({ tags, activeTags, onToggle, color }) {
   );
 }
 
-function PlaylistCard({ playlist, allCategories, onCuratorClick, onUpdateDescription }) {
+function PlaylistCard({ playlist, allCategories, onCuratorClick, onUpdateDescription, onUpdateLink }) {
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draftDesc, setDraftDesc] = useState(playlist.description);
+  const [editingLink, setEditingLink] = useState(false);
+  const [draftLink, setDraftLink] = useState(playlist.link || "");
 
   // Group the playlist's tags by category
   const tagsByCategory = useMemo(() => {
@@ -572,14 +574,71 @@ function PlaylistCard({ playlist, allCategories, onCuratorClick, onUpdateDescrip
               </div>
             );
           })}
-          {playlist.link && (
-            <div style={{ marginTop: "12px" }}>
-              <a href={playlist.link} target="_blank" rel="noreferrer"
-                style={{ color: HD.amber, fontSize: "0.85rem" }}>
-                Open playlist &rarr;
-              </a>
-            </div>
-          )}
+          <div style={{ marginTop: "12px" }}>
+            {editingLink ? (
+              <div onClick={e => e.stopPropagation()} style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                <input
+                  value={draftLink}
+                  onChange={e => setDraftLink(e.target.value)}
+                  placeholder="Paste Spotify, Apple Music, or TIDAL link…"
+                  autoFocus
+                  style={{
+                    flex: 1, padding: "6px 8px", fontSize: "0.85rem", fontFamily: FONT_NAV,
+                    border: `1px solid ${HD.amber}`, borderRadius: "4px", background: HD.cream,
+                    outline: "none", color: HD.black,
+                  }}
+                />
+                <button onClick={() => {
+                  onUpdateLink(playlist.id, draftLink);
+                  setEditingLink(false);
+                }} style={{
+                  background: HD.amber, color: "#fff", border: "none", borderRadius: "4px",
+                  padding: "5px 12px", fontSize: "0.7rem", fontFamily: FONT_NAV, cursor: "pointer",
+                  textTransform: "uppercase", letterSpacing: "0.05em",
+                }}>Save</button>
+                <button onClick={() => {
+                  setDraftLink(playlist.link || "");
+                  setEditingLink(false);
+                }} style={{
+                  background: "transparent", color: HD.warmGray, border: `1px solid ${HD.rule}`,
+                  borderRadius: "4px", padding: "5px 12px", fontSize: "0.7rem", fontFamily: FONT_NAV,
+                  cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.05em",
+                }}>Cancel</button>
+              </div>
+            ) : playlist.link ? (
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <a href={playlist.link} target="_blank" rel="noreferrer"
+                  onClick={e => e.stopPropagation()}
+                  style={{ color: HD.amber, fontSize: "0.85rem" }}>
+                  Open playlist &rarr;
+                </a>
+                {onUpdateLink && (
+                  <span
+                    onClick={e => { e.stopPropagation(); setEditingLink(true); }}
+                    style={{
+                      color: HD.amber, cursor: "pointer", fontSize: "0.7rem",
+                      fontFamily: FONT_NAV, textTransform: "uppercase", letterSpacing: "0.04em",
+                      opacity: 0.7,
+                    }}
+                    onMouseEnter={e => e.target.style.opacity = 1}
+                    onMouseLeave={e => e.target.style.opacity = 0.7}
+                  >edit</span>
+                )}
+              </div>
+            ) : onUpdateLink ? (
+              <span
+                onClick={e => { e.stopPropagation(); setEditingLink(true); }}
+                style={{
+                  color: HD.amber, cursor: "pointer", fontSize: "0.8rem",
+                  fontFamily: FONT_NAV, opacity: 0.7,
+                }}
+                onMouseEnter={e => e.target.style.opacity = 1}
+                onMouseLeave={e => e.target.style.opacity = 0.7}
+              >
+                + Add playlist link
+              </span>
+            ) : null}
+          </div>
         </div>
       )}
     </div>
@@ -1065,6 +1124,10 @@ function SearchView({ playlists, setPlaylists }) {
     setPlaylists(prev => prev.map(pl => pl.id === id ? { ...pl, description: newDesc } : pl));
   }, [setPlaylists]);
 
+  const handleUpdateLink = useCallback((id, newLink) => {
+    setPlaylists(prev => prev.map(pl => pl.id === id ? { ...pl, link: newLink } : pl));
+  }, [setPlaylists]);
+
   const toggleFilter = useCallback((tag) => {
     setActiveFilters(prev =>
       prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
@@ -1204,7 +1267,7 @@ function SearchView({ playlists, setPlaylists }) {
           }
         </div>
         {(showAll ? filteredByCurator : results).map(pl => (
-          <PlaylistCard key={pl.id} playlist={pl} allCategories={TAG_CATEGORIES} onCuratorClick={setCuratorFilter} onUpdateDescription={handleUpdateDescription} />
+          <PlaylistCard key={pl.id} playlist={pl} allCategories={TAG_CATEGORIES} onCuratorClick={setCuratorFilter} onUpdateDescription={handleUpdateDescription} onUpdateLink={handleUpdateLink} />
         ))}
         {!showAll && results.length === 0 && (
           <div style={{
