@@ -12,15 +12,15 @@ const TAG_CATEGORIES = {
       "punk","new wave","disco","house","afrobeat","bossa nova","psychedelic",
       "shoegaze","trip-hop","lo-fi","garage rock","post-punk","Americana",
       "gospel","Latin","highlife","cumbia","krautrock","synth-pop","dream pop",
-      "singer-songwriter","ska","tropicalia","exotica","Library music"
+      "singer-songwriter","ska","tropicalia","exotica"
     ],
   },
   era: {
     label: "Era",
     color: "#556B2F",
     tags: [
-      "1950s","1960s","1970s","1980s","1990s","2000s","2010s","2020s",
-      "pre-war","timeless","mixed era"
+      "timeless","mixed era","2020s","2010s","2000s","1990s","1980s","1970s",
+      "1960s","1950s","pre-war"
     ],
   },
   energy: {
@@ -38,7 +38,9 @@ const TAG_CATEGORIES = {
     tags: [
       "early morning","morning","late morning","brunch","midday","afternoon",
       "golden hour","evening","dinner hour","late night","after midnight",
-      "all day","weekend morning","weekday afternoon"
+      "all day","weekend morning","weekday afternoon",
+      "Saturday morning","Sunday morning","Saturday afternoon","Sunday afternoon",
+      "Thursday afternoon"
     ],
   },
   season: {
@@ -47,7 +49,9 @@ const TAG_CATEGORIES = {
     tags: [
       "spring","summer","autumn","winter","rainy day","sunny","overcast",
       "crisp air","humid","snowy","stormy","foggy","first warm day",
-      "Indian summer","dead of winter","year-round"
+      "Indian summer","dead of winter","year-round",
+      "first cold day","brisk","freezing","broiling","thunderstorms",
+      "gloomy","soggy","tornado"
     ],
   },
   room: {
@@ -78,7 +82,7 @@ const TAG_CATEGORIES = {
     label: "Practical",
     color: "#708090",
     tags: [
-      "instrumental-heavy","vocal-forward","mixed vocals","deep cuts only",
+      "instrumental","instrumental-heavy","vocal-forward","mixed vocals","deep cuts only",
       "some recognizable","mostly recognizable","explicit content","clean",
       "builds energy","steady energy","winds down","journey/arc",
       "great openers","great closers","pairs with coffee","pairs with wine",
