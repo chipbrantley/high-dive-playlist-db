@@ -1571,8 +1571,8 @@ export default function HighDivePlaylistDB() {
       )}
 
       {!loading && view === "curate" && (
-        hasInvite
-          ? <CuratorView inviteToken={inviteToken} onSubmitted={loadPlaylists} />
+        (hasInvite || isAdmin)
+          ? <CuratorView inviteToken={inviteToken || "hd-2026-invite"} onSubmitted={loadPlaylists} />
           : <InvalidInvite />
       )}
 
