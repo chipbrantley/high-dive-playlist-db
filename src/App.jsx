@@ -955,7 +955,7 @@ function CuratorView({ inviteToken, onSubmitted }) {
                 padding: "6px 14px", fontSize: "0.8rem", cursor: "pointer", color: HD.warmGray,
               }}
             >
-              \u2190 Edit Details
+              &larr; Edit Details
             </button>
           </div>
 
@@ -1125,7 +1125,7 @@ function CuratorView({ inviteToken, onSubmitted }) {
                 cursor: "pointer", color: HD.warmGray, fontFamily: FONT_BODY,
               }}
             >
-              \u2190 Back
+              &larr; Back
             </button>
             <button
               onClick={handleSubmit}
