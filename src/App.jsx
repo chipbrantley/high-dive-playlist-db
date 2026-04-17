@@ -1531,60 +1531,62 @@ export default function HighDivePlaylistDB() {
           Playlist Library
         </p>
 
-        {/* View toggle */}
-        <div style={{
-          display: "inline-flex", gap: "0", borderBottom: `2px solid ${HD.rule}`,
-        }}>
-          <button
-            onClick={() => setView("search")}
-            style={{
-              background: "transparent",
-              color: view === "search" ? HD.black : HD.warmGray,
-              border: "none",
-              borderBottom: view === "search" ? `2px solid ${HD.black}` : "2px solid transparent",
-              padding: "8px 24px", fontSize: "0.75rem", cursor: "pointer",
-              fontFamily: FONT_NAV, fontWeight: 600,
-              textTransform: "uppercase", letterSpacing: "0.15em",
-              marginBottom: "-2px",
-            }}
-          >
-            Search
-          </button>
-          {(hasInvite || isAdmin) && (
+        {/* View toggle — only show when there's more than one view */}
+        {(hasInvite || isAdmin) && (
+          <div style={{
+            display: "inline-flex", gap: "0", borderBottom: `2px solid ${HD.rule}`,
+          }}>
             <button
-              onClick={() => setView("curate")}
+              onClick={() => setView("search")}
               style={{
                 background: "transparent",
-                color: view === "curate" ? HD.black : HD.warmGray,
+                color: view === "search" ? HD.black : HD.warmGray,
                 border: "none",
-                borderBottom: view === "curate" ? `2px solid ${HD.black}` : "2px solid transparent",
+                borderBottom: view === "search" ? `2px solid ${HD.black}` : "2px solid transparent",
                 padding: "8px 24px", fontSize: "0.75rem", cursor: "pointer",
                 fontFamily: FONT_NAV, fontWeight: 600,
                 textTransform: "uppercase", letterSpacing: "0.15em",
                 marginBottom: "-2px",
               }}
             >
-              Submit
+              Search
             </button>
-          )}
-          {isAdmin && (
-            <button
-              onClick={() => setView("admin")}
-              style={{
-                background: "transparent",
-                color: view === "admin" ? HD.black : HD.warmGray,
-                border: "none",
-                borderBottom: view === "admin" ? `2px solid ${HD.black}` : "2px solid transparent",
-                padding: "8px 24px", fontSize: "0.75rem", cursor: "pointer",
-                fontFamily: FONT_NAV, fontWeight: 600,
-                textTransform: "uppercase", letterSpacing: "0.15em",
-                marginBottom: "-2px",
-              }}
-            >
-              Queue
-            </button>
-          )}
-        </div>
+            {(hasInvite || isAdmin) && (
+              <button
+                onClick={() => setView("curate")}
+                style={{
+                  background: "transparent",
+                  color: view === "curate" ? HD.black : HD.warmGray,
+                  border: "none",
+                  borderBottom: view === "curate" ? `2px solid ${HD.black}` : "2px solid transparent",
+                  padding: "8px 24px", fontSize: "0.75rem", cursor: "pointer",
+                  fontFamily: FONT_NAV, fontWeight: 600,
+                  textTransform: "uppercase", letterSpacing: "0.15em",
+                  marginBottom: "-2px",
+                }}
+              >
+                Submit
+              </button>
+            )}
+            {isAdmin && (
+              <button
+                onClick={() => setView("admin")}
+                style={{
+                  background: "transparent",
+                  color: view === "admin" ? HD.black : HD.warmGray,
+                  border: "none",
+                  borderBottom: view === "admin" ? `2px solid ${HD.black}` : "2px solid transparent",
+                  padding: "8px 24px", fontSize: "0.75rem", cursor: "pointer",
+                  fontFamily: FONT_NAV, fontWeight: 600,
+                  textTransform: "uppercase", letterSpacing: "0.15em",
+                  marginBottom: "-2px",
+                }}
+              >
+                Queue
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Loading state */}
