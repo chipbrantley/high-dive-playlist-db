@@ -1327,17 +1327,6 @@ function AdminView({ playlists, adminPassword, onRefresh }) {
                   </button>
                 </>
               )}
-              {pl.status === "rejected" && (
-                <button onClick={() => handleAction("approve", pl.id)}
-                  disabled={actionLoading === pl.id + "approve"}
-                  style={{
-                    background: "#2E8B57", color: "#fff", border: "none", borderRadius: "4px",
-                    padding: "6px 16px", fontSize: "0.75rem", fontWeight: 600, cursor: "pointer",
-                    fontFamily: FONT_NAV, textTransform: "uppercase", letterSpacing: "0.05em",
-                  }}>
-                  {actionLoading === pl.id + "approve" ? "..." : "Approve"}
-                </button>
-              )}
               {(pl.status === "approved" || pl.status === "rejected") && (
                 <button onClick={() => handleAction("revert", pl.id)}
                   disabled={actionLoading === pl.id + "revert"}
