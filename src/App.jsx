@@ -1466,7 +1466,7 @@ export default function HighDivePlaylistDB() {
   const inviteToken = params.get("key") || "";
   const adminPassword = params.get("admin") || "";
 
-  const [view, setView] = useState("search");
+  const [view, setView] = useState(adminPassword ? "admin" : "search");
   const [playlists, setPlaylists] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -1581,7 +1581,7 @@ export default function HighDivePlaylistDB() {
                 marginBottom: "-2px",
               }}
             >
-              Admin
+              Queue
             </button>
           )}
         </div>
