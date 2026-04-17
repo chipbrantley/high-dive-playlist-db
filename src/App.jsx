@@ -1159,6 +1159,7 @@ function AdminView({ playlists, adminPassword, onRefresh }) {
   const [error, setError] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
   const pending = playlists.filter(p => p.status === "pending");
   const approved = playlists.filter(p => p.status === "approved");
@@ -1337,6 +1338,17 @@ function AdminView({ playlists, adminPassword, onRefresh }) {
                   {actionLoading === pl.id + "approve" ? "..." : "Approve"}
                 </button>
               )}
+              {(pl.status === "approved" || pl.status === "rejected") && (
+                <button onClick={() => handleAction("revert", pl.id)}
+                  disabled={actionLoading === pl.id + "revert"}
+                  style={{
+                    background: "#b8860b", color: "#fff", border: "none", borderRadius: "4px",
+                    padding: "6px 16px", fontSize: "0.75rem", fontWeight: 600, cursor: "pointer",
+                    fontFamily: FONT_NAV, textTransform: "uppercase", letterSpacing: "0.05em",
+                  }}>
+                  {actionLoading === pl.id + "revert" ? "..." : "Back to Review"}
+                </button>
+              )}
               <button onClick={() => startEdit(pl)}
                 style={{
                   background: "transparent", color: HD.warmGray, border: `1px solid ${HD.rule}`,
@@ -1345,6 +1357,40 @@ function AdminView({ playlists, adminPassword, onRefresh }) {
                 }}>
                 Edit
               </button>
+              {confirmDeleteId === pl.id ? (
+                <>
+                  <span style={{ fontSize: "0.75rem", color: "#c53030", fontFamily: FONT_NAV, alignSelf: "center" }}>
+                    Delete this playlist?
+                  </span>
+                  <button onClick={() => { handleAction("delete", pl.id); setConfirmDeleteId(null); }}
+                    disabled={actionLoading === pl.id + "delete"}
+                    style={{
+                      background: "#c53030", color: "#fff", border: "none", borderRadius: "4px",
+                      padding: "6px 12px", fontSize: "0.75rem", fontWeight: 600, cursor: "pointer",
+                      fontFamily: FONT_NAV, textTransform: "uppercase", letterSpacing: "0.05em",
+                    }}>
+                    {actionLoading === pl.id + "delete" ? "..." : "Yes, Delete"}
+                  </button>
+                  <button onClick={() => setConfirmDeleteId(null)}
+                    style={{
+                      background: "transparent", color: HD.warmGray, border: `1px solid ${HD.rule}`,
+                      borderRadius: "4px", padding: "6px 12px", fontSize: "0.75rem", cursor: "pointer",
+                      fontFamily: FONT_NAV, textTransform: "uppercase", letterSpacing: "0.05em",
+                    }}>
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <button onClick={() => setConfirmDeleteId(pl.id)}
+                  style={{
+                    background: "transparent", color: "#c53030", border: `1px solid #e8c0c0`,
+                    borderRadius: "4px", padding: "6px 12px", fontSize: "0.75rem", fontWeight: 600,
+                    cursor: "pointer", fontFamily: FONT_NAV, textTransform: "uppercase", letterSpacing: "0.05em",
+                    marginLeft: "auto",
+                  }}>
+                  Delete
+                </button>
+              )}
             </div>
           </>
         )}

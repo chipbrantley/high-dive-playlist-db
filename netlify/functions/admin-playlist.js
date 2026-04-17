@@ -18,7 +18,8 @@ async function supabaseFetch(path, options = {}) {
     const text = await res.text();
     throw new Error(`Supabase error ${res.status}: ${text}`);
   }
-  return res.json();
+  const text = await res.text();
+  return text ? JSON.parse(text) : [];
 }
 
 exports.handler = async (event) => {
@@ -94,6 +95,25 @@ exports.handler = async (event) => {
         body: JSON.stringify(updates),
       });
       return { statusCode: 200, headers, body: JSON.stringify({ success: true, playlist: result[0] }) };
+    }
+
+    if (action === "revert") {
+      const result = await supabaseFetch(`playlists?id=eq.${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          status: "pending",
+          reviewed_at: null,
+          reviewed_by: null,
+        }),
+      });
+      return { statusCode: 200, headers, body: JSON.stringify({ success: true, playlist: result[0] }) };
+    }
+
+    if (action === "delete") {
+      await supabaseFetch(`playlists?id=eq.${id}`, {
+        method: "DELETE",
+      });
+      return { statusCode: 200, headers, body: JSON.stringify({ success: true, deleted: id }) };
     }
 
     return { statusCode: 400, headers, body: JSON.stringify({ error: "Unknown action" }) };
