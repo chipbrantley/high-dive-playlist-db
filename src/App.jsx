@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import _ from "lodash";
 
 // ─── TAG TAXONOMY ───────────────────────────────────────────────────────────
@@ -92,7 +92,6 @@ const TAG_CATEGORIES = {
 };
 
 // ─── SYNONYM / ASSOCIATION MAP ──────────────────────────────────────────────
-// Maps search terms to tags they should match (with weights 0-1)
 const SYNONYM_MAP = {
   "chill": [["low energy",1],["downtempo",0.9],["contemplative",0.7],["breezy",0.7],["ambient",0.6],["conversation-friendly",0.5]],
   "mellow": [["low energy",1],["downtempo",0.9],["warm",0.8],["tender",0.7],["languid",0.6]],
@@ -159,174 +158,69 @@ const SYNONYM_MAP = {
   "smooth": [["sophisticated",0.7],["lush",0.7],["warm",0.6],["bossa nova",0.5],["soul",0.5]],
 };
 
-// ─── SAMPLE PLAYLISTS ───────────────────────────────────────────────────────
-const INITIAL_PLAYLISTS = [
-  {
-    id: 1,
-    title: "I smoked too much pot and got lost in Joshua Tree",
-    curator: "Chip",
-    description: "Desert wandering music. Long instrumental passages, reverb for days, the kind of thing that sounds better when the sun is setting behind a rock formation and you're not entirely sure which direction the car is going.",
-    link: "https://open.spotify.com/playlist/3NohUaZDQCLiQhrftFvfFC",
-    tracks: 18,
-    runtime: "1hr 35min",
-    tags: ["psychedelic","rock","ambient","folk","1960s","1970s","2010s","mixed era","low energy","mid-tempo","downtempo","mixed tempo","slow build","afternoon","golden hour","late night","summer","autumn","sunny","overcast","first warm day","background-friendly","solo listening","sparse crowd","contemplative","dreamy","hazy","spacious","stoned","woozy","otherworldly","earthy","pastoral","cinematic","instrumental-heavy","deep cuts only","journey/arc","winds down"],
-  },
-  {
-    id: 2,
-    title: "I had a dream last night about Molly Ringwald",
-    curator: "Chip",
-    description: "80s-adjacent but not the obvious hits. The B-sides and deep cuts from the Brat Pack era. Synths, longing, and the feeling of sitting in Saturday detention.",
-    link: "https://open.spotify.com/playlist/5hbREUISxhJ0M1OUdTXIab",
-    tracks: 22,
-    runtime: "1hr 28min",
-    tags: ["synth-pop","new wave","dream pop","indie","1980s","1990s","medium energy","mid-tempo","steady pulse","afternoon","evening","golden hour","autumn","winter","overcast","rainy day","conversation-friendly","intimate gathering","friends catching up","nostalgic","dreamy","wistful","cinematic","romantic","warm","whimsical","playful","mixed vocals","some recognizable","deep cuts only","steady energy"],
-  },
-  {
-    id: 3,
-    title: "I'm going to go home and watch 50 Shades of Grey",
-    curator: "Chip",
-    description: "Music that gets you in the mood. Or at least reminds you what it's like to be in the mood.",
-    link: "https://open.spotify.com/playlist/60dtM72l1eXLCwWMJo6NSo",
-    tracks: 16,
-    runtime: "1hr 12min",
-    tags: ["R&B","electronic","trip-hop","soul","2000s","2010s","2020s","low energy","downtempo","simmering","evening","late night","after midnight","winter","autumn","rainy day","intimate gathering","date night","demands attention","sparse crowd","sultry","nocturnal","smoky","mysterious","warm","lush","raw","tender","vocal-forward","some recognizable","deep cuts only","slow build","pairs with wine","pairs with cocktails"],
-  },
-  {
-    id: 4,
-    title: "Je veux danser plus tard",
-    curator: "Chip",
-    description: "French and French-adjacent. Serge and Jane, Air, Francoise Hardy, newer stuff too. The energy builds slowly — you'll want to dance eventually, but not yet.",
-    link: "https://open.spotify.com/playlist/2ZS679Rsf6K4Y3qZpvj8IE",
-    tracks: 20,
-    runtime: "1hr 40min",
-    tags: ["pop","electronic","chanson","world","bossa nova","synth-pop","1960s","1970s","2000s","2010s","mixed era","medium energy","mid-tempo","slow build","simmering","afternoon","golden hour","evening","spring","summer","sunny","first warm day","conversation-friendly","dinner service","bustling cafe","happy hour","sophisticated","urbane","playful","breezy","romantic","whimsical","warm","buoyant","tipsy","mixed vocals","some recognizable","deep cuts only","builds energy","pairs with wine","pairs with cocktails","pairs with food"],
-  },
-  {
-    id: 5,
-    title: "Looking for something easy to cook for dinner in the Piggly Wiggly",
-    curator: "Chip",
-    description: "Wandering the aisles after work, no plan, no rush. Soft rock, country-soul, the kind of music that plays in your head when you're deciding between rotisserie chicken and pasta.",
-    link: "https://open.spotify.com/playlist/5dyVFMM8Bjh1EGZoPtkiiz",
-    tags: ["Americana","soul","country","folk","singer-songwriter","soft rock","1970s","1990s","2000s","2010s","mixed era","low energy","medium energy","mid-tempo","downtempo","afternoon","evening","golden hour","weekday afternoon","autumn","winter","overcast","crisp air","conversation-friendly","background-friendly","post-work decompression","warm","cozy","wistful","pastoral","earthy","nostalgic","tender","whimsical","irreverent","vocal-forward","mixed vocals","some recognizable","steady energy","pairs with food","pairs with wine"],
-    tracks: 19,
-    runtime: "1hr 22min",
-  },
-  {
-    id: 6,
-    title: "The Only Living Boy in the High Dive",
-    curator: "Chip",
-    description: "Solo acoustic leanings, but not coffeehouse cliche. Maybe a little emo. Maybe a little twee, but introspective without being mopey. The kind of thing you'd want to hear alone in a beautiful room.",
-    link: "https://open.spotify.com/playlist/32DXf6SJ5GdogFbZNvNtPk",
-    tags: ["folk","singer-songwriter","indie","Americana","classical","1960s","1970s","2000s","2010s","2020s","mixed era","very low energy","low energy","downtempo","languid","early morning","morning","late morning","afternoon","spring","autumn","overcast","rainy day","crisp air","quiet reading","solo listening","sparse crowd","working/studying","contemplative","wistful","tender","pastoral","spacious","warm","cerebral","meditative","earthy","vocal-forward","instrumental-heavy","deep cuts only","some recognizable","steady energy","winds down","pairs with coffee"],
-    tracks: 17,
-    runtime: "1hr 15min",
-  },
-  {
-    id: 7,
-    title: "Pleasant Jangle Happy Hour",
-    curator: "Chip",
-    description: "Bright, jangly guitars, upbeat but not aggressive. The Byrds meet Real Estate meet Big Star. Perfect for the 4-6pm window when the light is good and the first drinks are being poured.",
-    link: "",
-    tags: ["indie","rock","garage rock","jangle pop","Americana","1960s","1980s","2000s","2010s","mixed era","medium energy","medium-high energy","mid-tempo","uptempo","steady pulse","afternoon","golden hour","happy hour","evening","spring","summer","first warm day","sunny","bustling cafe","happy hour","friends catching up","packed house","conversation-friendly","jangly","buoyant","breezy","playful","warm","sun-drenched","nostalgic","bright","irreverent","mixed vocals","some recognizable","steady energy","builds energy","pairs with cocktails"],
-    tracks: 21,
-    runtime: "1hr 30min",
-  },
-  {
-    id: 8,
-    title: "Dreampop Morning",
-    curator: "Jackie Lo",
-    description: "Great for mornings or end of the night, driving around with the windows down, or when you want to feel like a main character in a Sofia Coppola film. Beach House, Slowdive, Cocteau Twins, Air, Stereolab, Low, Yo La Tengo.",
-    link: "",
-    tracks: 20,
-    runtime: "1hr 25min",
-    tags: ["dream pop","shoegaze","indie","electronic","ambient","1990s","2000s","2010s","mixed era","low energy","downtempo","mid-tempo","languid","steady pulse","early morning","morning","late night","all day","spring","summer","autumn","sunny","overcast","background-friendly","solo listening","sparse crowd","conversation-friendly","dreamy","hazy","cinematic","contemplative","breezy","wistful","warm","lush","spacious","blissed-out","nostalgic","vocal-forward","mixed vocals","deep cuts only","some recognizable","steady energy","pairs with coffee"],
-  },
-  {
-    id: 9,
-    title: "Dark Feminine Energy",
-    curator: "Jackie Lo",
-    description: "Feeling melancholy? Want to listen to women who are full of dark beauty and quiet rage? Would you be burned at the stake for your musical taste? Karen O, Mazzy Star, Warpaint, Babehoven, PJ Harvey, Japanese Breakfast, Wednesday, Portishead.",
-    link: "",
-    tracks: 18,
-    runtime: "1hr 20min",
-    tags: ["indie","rock","electronic","trip-hop","post-punk","dream pop","1990s","2000s","2010s","2020s","mixed era","low energy","medium energy","mid-tempo","simmering","slow build","morning","late night","after midnight","autumn","winter","overcast","rainy day","stormy","solo listening","demands attention","intimate gathering","sparse crowd","melancholic","gritty","raw","mysterious","nocturnal","sultry","angular","cool","smoky","cinematic","contemplative","tender","vocal-forward","deep cuts only","some recognizable","journey/arc","winds down"],
-  },
-  {
-    id: 10,
-    title: "Highdivinwithsuaze",
-    curator: "Suaze",
-    description: "Mellow, jazzy, and soulful.",
-    link: "",
-    tracks: 22,
-    runtime: "1hr 30min",
-    tags: ["jazz","soul","R&B","1960s","1970s","2000s","2010s","mixed era","low energy","medium energy","downtempo","mid-tempo","languid","morning","afternoon","golden hour","evening","dinner hour","late night","year-round","conversation-friendly","background-friendly","dinner service","happy hour","late night wind-down","warm","smoky","sophisticated","sultry","cool","lush","tender","vocal-forward","mixed vocals","some recognizable","steady energy","pairs with wine","pairs with cocktails"],
-  },
-  {
-    id: 11,
-    title: "Dead Sunny Ski Slopes",
-    curator: "Bart",
-    description: "Upbeat, beautiful, americana rock.",
-    link: "",
-    tracks: 18,
-    runtime: "1hr 10min",
-    tags: ["Americana","rock","indie","folk","1970s","2000s","2010s","mixed era","medium energy","medium-high energy","uptempo","mid-tempo","steady pulse","late morning","brunch","midday","afternoon","spring","summer","sunny","first warm day","crisp air","bustling cafe","conversation-friendly","friends catching up","buoyant","sun-drenched","warm","breezy","earthy","jangly","playful","nostalgic","vocal-forward","mixed vocals","some recognizable","steady energy","builds energy"],
-  },
-  {
-    id: 12,
-    title: "Cover to Cover",
-    curator: "Bruce Lanier",
-    description: "Less-known covers of songs we all know — or the original versions of songs with better-known covers. Upbeat background music that is both familiar and unfamiliar. Typically dating back to the 60s and 70s, with a favorable bent toward R&B, soul & funk. Etta James covering the Eagles, Buddy Miles covering the Allman Brothers.",
-    link: "",
-    tracks: 24,
-    runtime: "1hr 35min",
-    tags: ["R&B","soul","funk","rock","blues","1960s","1970s","mixed era","medium energy","mid-tempo","uptempo","steady pulse","all day","brunch","afternoon","golden hour","evening","year-round","background-friendly","conversation-friendly","bustling cafe","dinner service","happy hour","friends catching up","warm","funky","playful","nostalgic","irreverent","buoyant","swaggering","vocal-forward","some recognizable","mostly recognizable","steady energy","pairs with food","pairs with cocktails"],
-  },
-  {
-    id: 13,
-    title: "Reg's Coffee House",
-    curator: "Scott Register",
-    description: "New music in the singer-songwriter, alternative, folk vein. A curated Sunday morning radio show, now in playlist form — helping build your music library one song at a time since 1997.",
-    link: "",
-    tracks: 40,
-    runtime: "2hr 45min",
-    tags: ["singer-songwriter","folk","indie","Americana","rock","2010s","2020s","medium energy","mid-tempo","mixed tempo","steady pulse","morning","late morning","brunch","midday","afternoon","weekend morning","spring","autumn","year-round","background-friendly","conversation-friendly","working/studying","bustling cafe","Sunday morning","warm","earthy","contemplative","breezy","tender","wistful","nostalgic","vocal-forward","deep cuts only","some recognizable","steady energy","pairs with coffee"],
-  },
-  {
-    id: 14,
-    title: "Worm Time in the City",
-    curator: "Griffin",
-    description: "City vibes for sure. Happy and uplifting, a little weird but always ties back into a theme. Mainly a Japanese fusion playlist: Casiopea, Takanaka, Shigeo Sekito, Nucleus, Hiro Yanagida.",
-    link: "",
-    tracks: 16,
-    runtime: "1hr 15min",
-    tags: ["jazz","funk","electronic","world","1970s","1980s","mixed era","medium energy","medium-high energy","uptempo","mid-tempo","propulsive","brunch","midday","afternoon","summer","sunny","humid","bustling cafe","conversation-friendly","friends catching up","funky","buoyant","playful","urbane","sophisticated","warm","driving","whimsical","irreverent","instrumental-heavy","deep cuts only","builds energy","steady energy"],
-  },
-  {
-    id: 15,
-    title: "Sunny Holler in the Mountains",
-    curator: "Chase",
-    description: "Driving through North Georgia into East Tennessee or West North Carolina at the turn of spring. Mandolin, banjo, guitar, and fiddle, along with stompin' and foot-tappin' percussion. Sierra Ferrell, Robert Plant, Larkin Poe, Matt Heckler, and the Lost Dog Street Band around a campfire between a cabin and a peaceful creek.",
-    link: "",
-    tracks: 20,
-    runtime: "1hr 25min",
-    tags: ["folk","Americana","country","singer-songwriter","2010s","2020s","mixed era","medium energy","mid-tempo","uptempo","mixed tempo","morning","midday","afternoon","golden hour","spring","autumn","crisp air","first warm day","sunny","conversation-friendly","intimate gathering","solo listening","earthy","warm","pastoral","nostalgic","tender","cozy","buoyant","raw","vocal-forward","deep cuts only","some recognizable","steady energy","pairs with coffee"],
-  },
-  {
-    id: 16,
-    title: "Jazzy Breaks & Lo-Fi Vibes",
-    curator: "DJ CraigHead",
-    description: "Music intended to be background ambiance or actively listened to. Think Brian Eno's Music for Airports — jazzy breaks and hip-hop lo-fi vibes. 40 years of DJ and musician experience distilled into atmosphere.",
-    link: "",
-    tracks: 22,
-    runtime: "1hr 40min",
-    tags: ["jazz","hip-hop","electronic","ambient","lo-fi","1990s","2000s","2010s","2020s","mixed era","low energy","downtempo","languid","steady pulse","morning","midday","afternoon","late night","all day","rainy day","overcast","year-round","background-friendly","working/studying","quiet reading","solo listening","conversation-friendly","hazy","contemplative","meditative","spacious","cool","cerebral","dreamy","smoky","instrumental-heavy","deep cuts only","steady energy","pairs with coffee"],
-  },
-];
+// ─── BRAND + LAYOUT CONSTANTS ──────────────────────────────────────────────
+const FONT_DISPLAY = "'Playfair Display', Georgia, serif";
+const FONT_BODY = "Georgia, 'Times New Roman', serif";
+const FONT_NAV = "'Archivo Narrow', 'Titling Gothic FB', -apple-system, Helvetica, sans-serif";
 
-// ─── HELPERS ────────────────────────────────────────────────────────────────
-const allTagSet = new Set();
-Object.values(TAG_CATEGORIES).forEach(cat => cat.tags.forEach(t => allTagSet.add(t.toLowerCase())));
+const HD = {
+  black: "#3E3E3F",
+  walnut: "#2E2E2F",
+  amber: "#F27178",
+  cream: "#FAF7F5",
+  warmWhite: "#FFFFFF",
+  warmGray: "#7A7A7B",
+  rule: "#E0DEDD",
+};
 
+const inputStyle = {
+  padding: "10px 14px", borderRadius: "4px", border: `1px solid ${HD.rule}`,
+  fontSize: "0.95rem", fontFamily: FONT_BODY, background: "#fff", color: HD.black,
+  outline: "none",
+};
+
+const smallBtnStyle = {
+  background: HD.walnut, color: "#fff", border: "none", borderRadius: "4px",
+  padding: "8px 16px", fontSize: "0.85rem", cursor: "pointer", fontWeight: 600,
+};
+
+// ─── API HELPERS ────────────────────────────────────────────────────────────
+const API_BASE = "/.netlify/functions";
+
+async function apiFetch(endpoint, options = {}) {
+  const res = await fetch(`${API_BASE}/${endpoint}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+  return data;
+}
+
+async function fetchPlaylists(adminPassword) {
+  const headers = adminPassword ? { "admin-password": adminPassword } : {};
+  return apiFetch("get-playlists", { headers });
+}
+
+async function submitPlaylist(playlistData) {
+  return apiFetch("submit-playlist", {
+    method: "POST",
+    body: JSON.stringify(playlistData),
+  });
+}
+
+async function adminAction(action, id, adminPassword, extra = {}) {
+  return apiFetch("admin-playlist", {
+    method: "POST",
+    headers: { "admin-password": adminPassword },
+    body: JSON.stringify({ action, id, ...extra }),
+  });
+}
+
+// ─── SEARCH HELPERS ────────────────────────────────────────────────────────
 function searchPlaylists(playlists, query, activeFilters) {
   if (!query.trim() && activeFilters.length === 0) return playlists;
 
@@ -337,25 +231,20 @@ function searchPlaylists(playlists, query, activeFilters) {
       const plTags = pl.tags.map(t => t.toLowerCase());
       let score = 0;
 
-      // Score from active filter chips
       activeFilters.forEach(f => {
         if (plTags.includes(f.toLowerCase())) score += 2;
       });
 
-      // Score from search words
       words.forEach(word => {
-        // Direct tag match
         plTags.forEach(tag => {
           if (tag === word) score += 2;
           else if (tag.includes(word)) score += 1;
         });
 
-        // Title/description/curator match
         if (pl.title.toLowerCase().includes(word)) score += 1.5;
         if (pl.description.toLowerCase().includes(word)) score += 0.5;
         if (pl.curator && pl.curator.toLowerCase().includes(word)) score += 2;
 
-        // Synonym expansion
         if (SYNONYM_MAP[word]) {
           SYNONYM_MAP[word].forEach(([synTag, weight]) => {
             if (plTags.includes(synTag.toLowerCase())) {
@@ -364,7 +253,6 @@ function searchPlaylists(playlists, query, activeFilters) {
           });
         }
 
-        // Partial synonym match
         Object.keys(SYNONYM_MAP).forEach(synKey => {
           if (synKey.includes(word) && synKey !== word) {
             SYNONYM_MAP[synKey].forEach(([synTag, weight]) => {
@@ -385,10 +273,9 @@ function searchPlaylists(playlists, query, activeFilters) {
 // ─── COMPONENTS ─────────────────────────────────────────────────────────────
 
 function TagCloud({ tags, activeTags, onToggle, color }) {
-  // Vary font sizes to mimic the Cookthink cloud
   const sizes = useMemo(() => {
     const map = {};
-    tags.forEach((t, i) => {
+    tags.forEach((t) => {
       map[t] = 0.75 + Math.random() * 0.55;
     });
     return map;
@@ -426,14 +313,9 @@ function TagCloud({ tags, activeTags, onToggle, color }) {
   );
 }
 
-function PlaylistCard({ playlist, allCategories, onCuratorClick, onUpdateDescription, onUpdateLink }) {
+function PlaylistCard({ playlist, allCategories, onCuratorClick }) {
   const [expanded, setExpanded] = useState(false);
-  const [editing, setEditing] = useState(false);
-  const [draftDesc, setDraftDesc] = useState(playlist.description);
-  const [editingLink, setEditingLink] = useState(false);
-  const [draftLink, setDraftLink] = useState(playlist.link || "");
 
-  // Group the playlist's tags by category
   const tagsByCategory = useMemo(() => {
     const grouped = {};
     const lowerCatTags = {};
@@ -455,6 +337,14 @@ function PlaylistCard({ playlist, allCategories, onCuratorClick, onUpdateDescrip
     });
     return grouped;
   }, [playlist.tags, allCategories]);
+
+  // Determine which streaming links are available
+  const links = [];
+  if (playlist.spotifyLink) links.push({ label: "Spotify", url: playlist.spotifyLink });
+  if (playlist.appleMusicLink) links.push({ label: "Apple Music", url: playlist.appleMusicLink });
+  if (playlist.tidalLink) links.push({ label: "TIDAL", url: playlist.tidalLink });
+  // Fallback to generic link
+  if (links.length === 0 && playlist.link) links.push({ label: "Open playlist", url: playlist.link });
 
   return (
     <div
@@ -488,62 +378,14 @@ function PlaylistCard({ playlist, allCategories, onCuratorClick, onUpdateDescrip
             >
               {playlist.curator}
             </span>
-            {" "}&middot; {playlist.tracks} tracks &middot; {playlist.runtime}
+            {playlist.tracks ? <>{" "}&middot; {playlist.tracks} tracks</> : null}
+            {playlist.runtime ? <>{" "}&middot; {playlist.runtime}</> : null}
           </div>
-          {editing ? (
-            <div onClick={e => e.stopPropagation()} style={{ marginTop: "4px" }}>
-              <textarea
-                value={draftDesc}
-                onChange={e => setDraftDesc(e.target.value)}
-                autoFocus
-                style={{
-                  width: "100%", minHeight: "80px", padding: "8px", fontSize: "0.9rem",
-                  lineHeight: 1.6, fontFamily: FONT_BODY, color: "#4a3f34",
-                  border: `1px solid ${HD.amber}`, borderRadius: "4px", background: HD.cream,
-                  resize: "vertical", outline: "none", boxSizing: "border-box",
-                }}
-              />
-              <div style={{ display: "flex", gap: "8px", marginTop: "6px" }}>
-                <button onClick={() => {
-                  onUpdateDescription(playlist.id, draftDesc);
-                  setEditing(false);
-                }} style={{
-                  background: HD.amber, color: "#fff", border: "none", borderRadius: "4px",
-                  padding: "4px 14px", fontSize: "0.75rem", fontFamily: FONT_NAV, cursor: "pointer",
-                  textTransform: "uppercase", letterSpacing: "0.05em",
-                }}>Save</button>
-                <button onClick={() => {
-                  setDraftDesc(playlist.description);
-                  setEditing(false);
-                }} style={{
-                  background: "transparent", color: HD.warmGray, border: `1px solid ${HD.rule}`,
-                  borderRadius: "4px", padding: "4px 14px", fontSize: "0.75rem", fontFamily: FONT_NAV,
-                  cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.05em",
-                }}>Cancel</button>
-              </div>
-            </div>
-          ) : (
-            <p style={{
-              margin: 0, color: "#4a3f34", fontSize: "0.9rem", lineHeight: 1.6, fontFamily: FONT_BODY,
-              position: "relative",
-            }}>
-              {playlist.description}
-              {onUpdateDescription && (
-                <span
-                  onClick={e => { e.stopPropagation(); setEditing(true); }}
-                  style={{
-                    marginLeft: "8px", color: HD.amber, cursor: "pointer", fontSize: "0.75rem",
-                    fontFamily: FONT_NAV, textTransform: "uppercase", letterSpacing: "0.04em",
-                    opacity: 0.7,
-                  }}
-                  onMouseEnter={e => e.target.style.opacity = 1}
-                  onMouseLeave={e => e.target.style.opacity = 0.7}
-                >
-                  edit
-                </span>
-              )}
-            </p>
-          )}
+          <p style={{
+            margin: 0, color: "#4a3f34", fontSize: "0.9rem", lineHeight: 1.6, fontFamily: FONT_BODY,
+          }}>
+            {playlist.description}
+          </p>
         </div>
         {playlist.score !== undefined && (
           <div style={{
@@ -574,559 +416,35 @@ function PlaylistCard({ playlist, allCategories, onCuratorClick, onUpdateDescrip
               </div>
             );
           })}
-          <div style={{ marginTop: "12px" }}>
-            {editingLink ? (
-              <div onClick={e => e.stopPropagation()} style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                <input
-                  value={draftLink}
-                  onChange={e => setDraftLink(e.target.value)}
-                  placeholder="Paste Spotify, Apple Music, or TIDAL link…"
-                  autoFocus
-                  style={{
-                    flex: 1, padding: "6px 8px", fontSize: "0.85rem", fontFamily: FONT_NAV,
-                    border: `1px solid ${HD.amber}`, borderRadius: "4px", background: HD.cream,
-                    outline: "none", color: HD.black,
-                  }}
-                />
-                <button onClick={() => {
-                  onUpdateLink(playlist.id, draftLink);
-                  setEditingLink(false);
-                }} style={{
-                  background: HD.amber, color: "#fff", border: "none", borderRadius: "4px",
-                  padding: "5px 12px", fontSize: "0.7rem", fontFamily: FONT_NAV, cursor: "pointer",
-                  textTransform: "uppercase", letterSpacing: "0.05em",
-                }}>Save</button>
-                <button onClick={() => {
-                  setDraftLink(playlist.link || "");
-                  setEditingLink(false);
-                }} style={{
-                  background: "transparent", color: HD.warmGray, border: `1px solid ${HD.rule}`,
-                  borderRadius: "4px", padding: "5px 12px", fontSize: "0.7rem", fontFamily: FONT_NAV,
-                  cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.05em",
-                }}>Cancel</button>
-              </div>
-            ) : playlist.link ? (
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <a href={playlist.link} target="_blank" rel="noreferrer"
+          {links.length > 0 && (
+            <div style={{ marginTop: "12px", display: "flex", gap: "16px", flexWrap: "wrap" }}>
+              {links.map(l => (
+                <a key={l.label} href={l.url} target="_blank" rel="noreferrer"
                   onClick={e => e.stopPropagation()}
-                  style={{ color: HD.amber, fontSize: "0.85rem" }}>
-                  Open playlist &rarr;
+                  style={{ color: HD.amber, fontSize: "0.85rem", fontFamily: FONT_NAV }}>
+                  {l.label} &rarr;
                 </a>
-                {onUpdateLink && (
-                  <span
-                    onClick={e => { e.stopPropagation(); setEditingLink(true); }}
-                    style={{
-                      color: HD.amber, cursor: "pointer", fontSize: "0.7rem",
-                      fontFamily: FONT_NAV, textTransform: "uppercase", letterSpacing: "0.04em",
-                      opacity: 0.7,
-                    }}
-                    onMouseEnter={e => e.target.style.opacity = 1}
-                    onMouseLeave={e => e.target.style.opacity = 0.7}
-                  >edit</span>
-                )}
-              </div>
-            ) : onUpdateLink ? (
-              <span
-                onClick={e => { e.stopPropagation(); setEditingLink(true); }}
-                style={{
-                  color: HD.amber, cursor: "pointer", fontSize: "0.8rem",
-                  fontFamily: FONT_NAV, opacity: 0.7,
-                }}
-                onMouseEnter={e => e.target.style.opacity = 1}
-                onMouseLeave={e => e.target.style.opacity = 0.7}
-              >
-                + Add playlist link
-              </span>
-            ) : null}
-          </div>
+              ))}
+            </div>
+          )}
+          {playlist.moodVibe && (
+            <div style={{ marginTop: "10px", fontSize: "0.8rem", color: HD.warmGray, fontStyle: "italic" }}>
+              {playlist.moodVibe}
+            </div>
+          )}
         </div>
       )}
     </div>
   );
 }
 
-const ALL_CATEGORIES = Object.keys(TAG_CATEGORIES);
+// ─── SEARCH VIEW ────────────────────────────────────────────────────────────
 
-function CuratorView({ playlists, setPlaylists }) {
-  const [phase, setPhase] = useState(1);
-  const [form, setForm] = useState(
-    { title: "", curator: "", description: "", link: "", tracks: "", runtime: "", tags: [] }
-  );
-  const [aiSuggestions, setAiSuggestions] = useState(null); // { genre: [...], vibe: [...], ... }
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiError, setAiError] = useState("");
-  const [activeCategory, setActiveCategory] = useState("vibe");
-  const [suggestTag, setSuggestTag] = useState("");
-  const [customTags, setCustomTags] = useState([]);
-  const [saved, setSaved] = useState(false);
-
-  const toggleTag = useCallback((tag) => {
-    setForm(prev => ({
-      ...prev,
-      tags: prev.tags.includes(tag) ? prev.tags.filter(t => t !== tag) : [...prev.tags, tag],
-    }));
-  }, []);
-
-  const handleSuggest = () => {
-    if (suggestTag.trim()) {
-      setCustomTags(prev => [...prev, suggestTag.trim()]);
-      setForm(prev => ({ ...prev, tags: [...prev.tags, suggestTag.trim()] }));
-      setSuggestTag("");
-    }
-  };
-
-  const handleSave = () => {
-    if (!form.title.trim()) return;
-    const newPlaylist = {
-      ...form,
-      id: Date.now(),
-      tracks: parseInt(form.tracks) || 0,
-      runtime: form.runtime || "Unknown",
-    };
-    setPlaylists(prev => [...prev, newPlaylist]);
-    setForm({ title: "", curator: "", description: "", link: "", tracks: "", runtime: "", tags: [] });
-    setAiSuggestions(null);
-    setCustomTags([]);
-    setAiError("");
-    setPhase(1);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
-  };
-
-  const fetchAISuggestions = async () => {
-    setAiLoading(true);
-    setAiError("");
-    console.log("[HD] Fetching AI tag suggestions...", { title: form.title });
-    try {
-      const response = await fetch("/.netlify/functions/suggest-tags", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: form.title, description: form.description }),
-      });
-      const data = await response.json();
-      console.log("[HD] AI suggestions:", data);
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to get tag suggestions");
-      }
-
-      setAiSuggestions(data.suggestedTags);
-
-      // Pre-select all suggested tags
-      const allSuggested = Object.values(data.suggestedTags).flat();
-      const newTags = [...form.tags];
-      for (const tag of allSuggested) {
-        if (!newTags.includes(tag)) newTags.push(tag);
-      }
-      setForm(prev => ({ ...prev, tags: newTags }));
-
-      return true;
-    } catch (err) {
-      setAiError(err.message);
-      return false;
-    } finally {
-      setAiLoading(false);
-    }
-  };
-
-  const goToPhase2 = async () => {
-    if (!form.title.trim()) return;
-
-    // Auto-fetch AI suggestions when moving to phase 2
-    if (!aiSuggestions) {
-      await fetchAISuggestions();
-    }
-
-    setPhase(2);
-    setActiveCategory("vibe");
-  };
-
-  const goBackToPhase1 = () => {
-    setPhase(1);
-  };
-
-  const totalSuggested = aiSuggestions ? Object.values(aiSuggestions).flat().length : 0;
-  const catEntries = Object.entries(TAG_CATEGORIES);
-
-  return (
-    <div>
-      {/* Phase indicator */}
-      <div style={{
-        display: "flex", alignItems: "center", justifyContent: "center",
-        gap: "12px", marginBottom: "24px",
-      }}>
-        <div style={{
-          display: "flex", alignItems: "center", gap: "8px",
-          opacity: phase === 1 ? 1 : 0.5,
-        }}>
-          <div style={{
-            width: "28px", height: "28px", borderRadius: "50%",
-            background: phase === 1 ? "#8B4513" : "#2E8B57",
-            color: "#fff", display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: "0.8rem", fontWeight: 600,
-          }}>
-            {phase > 1 ? "✓" : "1"}
-          </div>
-          <span style={{
-            fontSize: "0.85rem", fontWeight: phase === 1 ? 600 : 400,
-            color: "#2c1810", fontFamily: "Georgia, serif",
-          }}>
-            Playlist Details
-          </span>
-        </div>
-        <div style={{ width: "40px", height: "2px", background: phase >= 2 ? "#8B4513" : "#d5c8b8" }} />
-        <div style={{
-          display: "flex", alignItems: "center", gap: "8px",
-          opacity: phase === 2 ? 1 : 0.5,
-        }}>
-          <div style={{
-            width: "28px", height: "28px", borderRadius: "50%",
-            background: phase === 2 ? "#8B4513" : "#d5c8b8",
-            color: phase === 2 ? "#fff" : "#8a7565",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: "0.8rem", fontWeight: 600,
-          }}>
-            2
-          </div>
-          <span style={{
-            fontSize: "0.85rem", fontWeight: phase === 2 ? 600 : 400,
-            color: phase === 2 ? "#2c1810" : "#8a7565", fontFamily: "Georgia, serif",
-          }}>
-            Add Keywords
-          </span>
-        </div>
-      </div>
-
-      {/* ─── PHASE 1: Playlist Details ─── */}
-      {phase === 1 && (
-        <div>
-          <div style={{
-            background: "#faf7f2", border: "1px solid #e0d5c7", borderRadius: "8px", padding: "24px", marginBottom: "24px",
-          }}>
-            <h3 style={{ margin: "0 0 4px 0", fontFamily: "Georgia, serif", color: "#2c1810" }}>Tell us about the playlist</h3>
-            <p style={{ margin: "0 0 16px 0", color: "#8a7565", fontSize: "0.85rem" }}>
-              Basic info first. We'll handle tags in the next step.
-            </p>
-
-            <div style={{ display: "grid", gap: "12px" }}>
-              <input
-                type="text" placeholder="Playlist title" value={form.title}
-                onChange={e => setForm(p => ({ ...p, title: e.target.value }))}
-                style={inputStyle}
-              />
-              <textarea
-                placeholder="Description / story behind this playlist — what's the vibe? what inspired it?"
-                value={form.description}
-                onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
-                rows={4} style={{ ...inputStyle, resize: "vertical" }}
-              />
-              <input
-                type="text" placeholder="Link (Spotify, Apple Music, TIDAL, etc.)"
-                value={form.link}
-                onChange={e => setForm(p => ({ ...p, link: e.target.value }))}
-                style={inputStyle}
-              />
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" }}>
-                <input
-                  type="text" placeholder="Curator name" value={form.curator}
-                  onChange={e => setForm(p => ({ ...p, curator: e.target.value }))}
-                  style={inputStyle}
-                />
-                <input
-                  type="text" placeholder="# of tracks" value={form.tracks}
-                  onChange={e => setForm(p => ({ ...p, tracks: e.target.value }))}
-                  style={inputStyle}
-                />
-                <input
-                  type="text" placeholder="Runtime (e.g. 1hr 30min)" value={form.runtime}
-                  onChange={e => setForm(p => ({ ...p, runtime: e.target.value }))}
-                  style={inputStyle}
-                />
-              </div>
-            </div>
-          </div>
-
-          {form.title.trim() && form.description.trim() && (
-            <div style={{
-              background: "#f0f7f0", border: "1px solid #b8d4b8", borderRadius: "8px",
-              padding: "16px 20px", marginBottom: "16px",
-              fontSize: "0.85rem", color: "#3a5a3a", fontFamily: "Georgia, serif",
-            }}>
-              When you proceed, we'll auto-suggest tags across all categories based on your title and description.
-            </div>
-          )}
-          {aiError && (
-            <div style={{
-              background: "#fff0f0", border: "1px solid #d4b8b8", borderRadius: "8px",
-              padding: "16px 20px", marginBottom: "16px",
-              fontSize: "0.85rem", color: "#5a3a3a", fontFamily: "Georgia, serif",
-            }}>
-              Couldn't generate tag suggestions: {aiError}. You can still tag manually.
-            </div>
-          )}
-
-          <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-            <button
-              onClick={goToPhase2}
-              disabled={!form.title.trim() || aiLoading}
-              style={{
-                background: (form.title.trim() && !aiLoading) ? "#8B4513" : "#ccc",
-                color: "#fff", border: "none", borderRadius: "6px",
-                padding: "12px 32px", fontSize: "1rem", fontWeight: 600,
-                cursor: (form.title.trim() && !aiLoading) ? "pointer" : "default",
-                fontFamily: "Georgia, serif",
-              }}
-            >
-              {aiLoading ? "Generating tag suggestions..." : "Next: Add Keywords →"}
-            </button>
-            {!form.title.trim() && !aiLoading && (
-              <span style={{ fontSize: "0.8rem", color: "#8a7565" }}>
-                Add a title to continue
-              </span>
-            )}
-            {aiLoading && (
-              <span style={{ fontSize: "0.8rem", color: "#8a7565" }}>
-                Reading the vibe...
-              </span>
-            )}
-          </div>
-
-          {saved && (
-            <div style={{
-              marginTop: "16px", padding: "12px 20px", background: "#f0f7f0",
-              border: "1px solid #b8d4b8", borderRadius: "8px",
-              color: "#2E8B57", fontWeight: 600, fontSize: "0.9rem",
-            }}>
-              ✓ Playlist saved! Add another or switch to Search.
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ─── PHASE 2: Tagging ─── */}
-      {phase === 2 && (
-        <div>
-          {/* Summary of phase 1 */}
-          <div style={{
-            background: "#faf7f2", border: "1px solid #e0d5c7", borderRadius: "8px",
-            padding: "16px 20px", marginBottom: "20px",
-            display: "flex", justifyContent: "space-between", alignItems: "center",
-          }}>
-            <div>
-              <h3 style={{ margin: "0 0 2px 0", fontFamily: "Georgia, serif", color: "#2c1810", fontSize: "1.05rem" }}>
-                {form.title}
-              </h3>
-              <span style={{ fontSize: "0.8rem", color: "#8a7565" }}>
-                {form.curator}{form.tracks ? ` · ${form.tracks} tracks` : ""}{form.runtime ? ` · ${form.runtime}` : ""}
-              </span>
-            </div>
-            <button
-              onClick={goBackToPhase1}
-              style={{
-                background: "transparent", border: "1px solid #d5c8b8", borderRadius: "6px",
-                padding: "6px 14px", fontSize: "0.8rem", cursor: "pointer", color: "#5a4a3a",
-              }}
-            >
-              ← Edit Details
-            </button>
-          </div>
-
-          {/* AI suggestions summary */}
-          {aiSuggestions && totalSuggested > 0 && (
-            <div style={{
-              background: "#f0f7f0", border: "1px solid #b8d4b8", borderRadius: "8px",
-              padding: "16px 20px", marginBottom: "20px",
-              fontFamily: "Georgia, serif",
-            }}>
-              <div style={{ fontSize: "0.85rem", color: "#3a5a3a", marginBottom: "4px", fontWeight: 600 }}>
-                {totalSuggested} tags auto-suggested
-              </div>
-              <div style={{ fontSize: "0.8rem", color: "#5a7a5a" }}>
-                Review the suggestions below — they're pre-selected. Click any tag to add or remove it.
-              </div>
-              <button
-                onClick={fetchAISuggestions}
-                disabled={aiLoading}
-                style={{
-                  marginTop: "8px", background: "transparent", border: "1px solid #b8d4b8",
-                  borderRadius: "4px", padding: "4px 12px", fontSize: "0.75rem",
-                  cursor: aiLoading ? "default" : "pointer", color: "#3a5a3a",
-                }}
-              >
-                {aiLoading ? "Regenerating..." : "Regenerate suggestions"}
-              </button>
-            </div>
-          )}
-
-          {/* All tag categories in one unified section */}
-          <div style={{
-            background: "#faf7f2", border: "1px solid #e0d5c7", borderRadius: "8px",
-            overflow: "hidden", marginBottom: "20px",
-          }}>
-            <div style={{ padding: "16px 24px 0" }}>
-              <h3 style={{ margin: "0 0 4px 0", fontFamily: "Georgia, serif", color: "#2c1810", fontSize: "1rem" }}>
-                Keywords
-              </h3>
-              <p style={{ margin: "0 0 8px 0", color: "#8a7565", fontSize: "0.8rem" }}>
-                What words would you use to describe (and search for) this playlist?
-              </p>
-            </div>
-
-            {/* Category tabs */}
-            <div style={{
-              display: "flex", gap: "0", borderBottom: "1px solid #e0d5c7", overflowX: "auto",
-              padding: "0 24px",
-            }}>
-              {catEntries.map(([key, cat]) => {
-                const showThis = activeCategory === key;
-                const catSuggestionCount = aiSuggestions && aiSuggestions[key] ? aiSuggestions[key].length : 0;
-                return (
-                  <button
-                    key={key}
-                    onClick={() => setActiveCategory(key)}
-                    style={{
-                      background: showThis ? cat.color : "transparent",
-                      color: showThis ? "#fff" : "#5a4a3a",
-                      border: "none",
-                      borderRadius: "6px 6px 0 0",
-                      padding: "8px 16px",
-                      fontSize: "0.8rem",
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.03em",
-                      whiteSpace: "nowrap",
-                      position: "relative",
-                    }}
-                  >
-                    {cat.label}
-                    {catSuggestionCount > 0 && !showThis && (
-                      <span style={{
-                        marginLeft: "4px", background: "#b8d4b8", color: "#3a5a3a",
-                        borderRadius: "8px", padding: "1px 5px", fontSize: "0.65rem",
-                      }}>
-                        {catSuggestionCount}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div style={{ padding: "12px 24px 16px" }}>
-              {/* Show which tags were AI-suggested for this category */}
-              {aiSuggestions && aiSuggestions[activeCategory] && aiSuggestions[activeCategory].length > 0 && (
-                <div style={{
-                  fontSize: "0.75rem", color: "#5a7a5a", marginBottom: "8px",
-                  fontStyle: "italic",
-                }}>
-                  Suggested: {aiSuggestions[activeCategory].join(", ")}
-                </div>
-              )}
-              <TagCloud
-                tags={TAG_CATEGORIES[activeCategory].tags}
-                activeTags={form.tags}
-                onToggle={toggleTag}
-                color={TAG_CATEGORIES[activeCategory].color}
-              />
-              <div style={{ display: "flex", gap: "8px", marginTop: "12px", alignItems: "center" }}>
-                <input
-                  type="text"
-                  placeholder={`Suggest a new ${TAG_CATEGORIES[activeCategory].label.toLowerCase()} tag...`}
-                  value={suggestTag}
-                  onChange={e => setSuggestTag(e.target.value)}
-                  onKeyDown={e => e.key === "Enter" && handleSuggest()}
-                  style={{ ...inputStyle, flex: 1, fontSize: "0.85rem" }}
-                />
-                <button onClick={handleSuggest} style={smallBtnStyle}>+ Add</button>
-              </div>
-            </div>
-          </div>
-
-          {customTags.length > 0 && (
-            <div style={{
-              fontSize: "0.8rem", color: "#8a7565", marginBottom: "12px",
-              background: "#faf7f2", border: "1px solid #e0d5c7", borderRadius: "8px",
-              padding: "12px 20px",
-            }}>
-              <span style={{ fontWeight: 600 }}>Custom tags: </span>{customTags.join(", ")}
-            </div>
-          )}
-
-          {/* Selected tags summary */}
-          {form.tags.length > 0 && (
-            <div style={{
-              background: "#faf7f2", border: "1px solid #e0d5c7", borderRadius: "8px",
-              padding: "16px 24px", marginBottom: "16px",
-            }}>
-              <div style={{ fontSize: "0.8rem", color: "#8a7565", marginBottom: "8px", fontWeight: 600 }}>
-                {form.tags.length} tags selected:
-              </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-                {form.tags.map(tag => (
-                  <span
-                    key={tag}
-                    onClick={() => toggleTag(tag)}
-                    style={{
-                      background: "#8B4513", color: "#fff", borderRadius: "4px",
-                      padding: "3px 10px", fontSize: "0.8rem", cursor: "pointer",
-                    }}
-                  >
-                    {tag} &times;
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Action buttons */}
-          <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-            <button
-              onClick={goBackToPhase1}
-              style={{
-                background: "transparent", border: "1px solid #d5c8b8",
-                borderRadius: "6px", padding: "12px 24px", fontSize: "1rem",
-                cursor: "pointer", color: "#5a4a3a", fontFamily: "Georgia, serif",
-              }}
-            >
-              ← Back
-            </button>
-            <button
-              onClick={handleSave}
-              style={{
-                background: "#8B4513",
-                color: "#fff", border: "none", borderRadius: "6px",
-                padding: "12px 32px", fontSize: "1rem", fontWeight: 600,
-                cursor: "pointer",
-                fontFamily: "Georgia, serif",
-              }}
-            >
-              Save Playlist
-            </button>
-            {form.tags.length === 0 && (
-              <span style={{ fontSize: "0.8rem", color: "#8a7565" }}>
-                You can save without tags, but the more you tag, the better search works
-              </span>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function SearchView({ playlists, setPlaylists }) {
+function SearchView({ playlists }) {
   const [query, setQuery] = useState("");
   const [activeFilters, setActiveFilters] = useState([]);
   const [activeCategory, setActiveCategory] = useState("vibe");
   const [curatorFilter, setCuratorFilter] = useState(null);
-
-  const handleUpdateDescription = useCallback((id, newDesc) => {
-    setPlaylists(prev => prev.map(pl => pl.id === id ? { ...pl, description: newDesc } : pl));
-  }, [setPlaylists]);
-
-  const handleUpdateLink = useCallback((id, newLink) => {
-    setPlaylists(prev => prev.map(pl => pl.id === id ? { ...pl, link: newLink } : pl));
-  }, [setPlaylists]);
 
   const toggleFilter = useCallback((tag) => {
     setActiveFilters(prev =>
@@ -1134,7 +452,6 @@ function SearchView({ playlists, setPlaylists }) {
     );
   }, []);
 
-  // Apply curator filter first, then search within those results
   const filteredByCurator = curatorFilter
     ? playlists.filter(pl => pl.curator === curatorFilter)
     : playlists;
@@ -1150,7 +467,7 @@ function SearchView({ playlists, setPlaylists }) {
 
   return (
     <div>
-      {/* Search header — monochromatic, editorial */}
+      {/* Search header */}
       <div style={{
         background: HD.black,
         borderRadius: "8px", padding: "36px 32px", marginBottom: "24px", textAlign: "center",
@@ -1223,7 +540,6 @@ function SearchView({ playlists, setPlaylists }) {
           </p>
         </div>
 
-        {/* Category tabs at bottom like Cookthink */}
         <div style={{ padding: "4px 20px 12px" }}>
           <TagCloud
             tags={TAG_CATEGORIES[activeCategory].tags}
@@ -1267,12 +583,12 @@ function SearchView({ playlists, setPlaylists }) {
           }
         </div>
         {(showAll ? filteredByCurator : results).map(pl => (
-          <PlaylistCard key={pl.id} playlist={pl} allCategories={TAG_CATEGORIES} onCuratorClick={setCuratorFilter} onUpdateDescription={handleUpdateDescription} onUpdateLink={handleUpdateLink} />
+          <PlaylistCard key={pl.id} playlist={pl} allCategories={TAG_CATEGORIES} onCuratorClick={setCuratorFilter} />
         ))}
         {!showAll && results.length === 0 && (
           <div style={{
             textAlign: "center", padding: "48px 24px", color: "#8a7565",
-            fontFamily: "Georgia, serif", fontSize: "1.1rem",
+            fontFamily: FONT_BODY, fontSize: "1.1rem",
           }}>
             No playlists match that vibe yet. Time to make one?
           </div>
@@ -1282,36 +598,870 @@ function SearchView({ playlists, setPlaylists }) {
   );
 }
 
+// ─── CURATOR / SUBMIT VIEW ──────────────────────────────────────────────────
+
+function CuratorView({ inviteToken, onSubmitted }) {
+  const [phase, setPhase] = useState(1);
+  const [form, setForm] = useState({
+    title: "", contactName: "", creditName: "", description: "", moodVibe: "",
+    spotifyLink: "", appleMusicLink: "", tidalLink: "",
+    tracks: "", runtime: "", tags: [],
+  });
+  const [aiSuggestions, setAiSuggestions] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState("");
+  const [activeCategory, setActiveCategory] = useState("vibe");
+  const [suggestTag, setSuggestTag] = useState("");
+  const [customTags, setCustomTags] = useState([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+
+  const toggleTag = useCallback((tag) => {
+    setForm(prev => ({
+      ...prev,
+      tags: prev.tags.includes(tag) ? prev.tags.filter(t => t !== tag) : [...prev.tags, tag],
+    }));
+  }, []);
+
+  const handleSuggest = () => {
+    if (suggestTag.trim()) {
+      setCustomTags(prev => [...prev, suggestTag.trim()]);
+      setForm(prev => ({ ...prev, tags: [...prev.tags, suggestTag.trim()] }));
+      setSuggestTag("");
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!form.title.trim() || !form.contactName.trim()) return;
+    setSubmitting(true);
+    setSubmitError("");
+    try {
+      await submitPlaylist({
+        inviteToken,
+        title: form.title,
+        contactName: form.contactName,
+        creditName: form.creditName || null,
+        description: form.description,
+        moodVibe: form.moodVibe,
+        spotifyLink: form.spotifyLink,
+        appleMusicLink: form.appleMusicLink,
+        tidalLink: form.tidalLink,
+        tracks: form.tracks ? parseInt(form.tracks) : null,
+        runtime: form.runtime,
+        tags: form.tags,
+      });
+      setSubmitted(true);
+      if (onSubmitted) onSubmitted();
+    } catch (err) {
+      setSubmitError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const resetForm = () => {
+    setForm({
+      title: "", contactName: form.contactName, creditName: form.creditName,
+      description: "", moodVibe: "",
+      spotifyLink: "", appleMusicLink: "", tidalLink: "",
+      tracks: "", runtime: "", tags: [],
+    });
+    setAiSuggestions(null);
+    setCustomTags([]);
+    setAiError("");
+    setSubmitError("");
+    setPhase(1);
+    setSubmitted(false);
+  };
+
+  const fetchAISuggestions = async () => {
+    setAiLoading(true);
+    setAiError("");
+    try {
+      const response = await fetch("/.netlify/functions/suggest-tags", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: form.title, description: form.description }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to get tag suggestions");
+
+      setAiSuggestions(data.suggestedTags);
+
+      const allSuggested = Object.values(data.suggestedTags).flat();
+      const newTags = [...form.tags];
+      for (const tag of allSuggested) {
+        if (!newTags.includes(tag)) newTags.push(tag);
+      }
+      setForm(prev => ({ ...prev, tags: newTags }));
+      return true;
+    } catch (err) {
+      setAiError(err.message);
+      return false;
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const goToPhase2 = async () => {
+    if (!form.title.trim() || !form.contactName.trim()) return;
+    if (!aiSuggestions) await fetchAISuggestions();
+    setPhase(2);
+    setActiveCategory("vibe");
+  };
+
+  // ── Success screen ──
+  if (submitted) {
+    return (
+      <div style={{ textAlign: "center", padding: "48px 24px" }}>
+        <div style={{
+          width: "64px", height: "64px", borderRadius: "50%",
+          background: "#e8f5e8", color: "#2E8B57",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: "2rem", margin: "0 auto 16px",
+        }}>
+          &#10003;
+        </div>
+        <h2 style={{ fontFamily: FONT_DISPLAY, color: HD.black, margin: "0 0 8px 0" }}>
+          Playlist submitted!
+        </h2>
+        <p style={{ color: HD.warmGray, fontFamily: FONT_BODY, fontSize: "0.95rem", margin: "0 0 24px 0" }}>
+          It's in the queue for review. We'll add it to the library once it's approved.
+        </p>
+        <button onClick={resetForm} style={{
+          background: HD.walnut, color: "#fff", border: "none", borderRadius: "6px",
+          padding: "12px 32px", fontSize: "1rem", fontWeight: 600, cursor: "pointer",
+          fontFamily: FONT_BODY,
+        }}>
+          Submit another playlist
+        </button>
+      </div>
+    );
+  }
+
+  const totalSuggested = aiSuggestions ? Object.values(aiSuggestions).flat().length : 0;
+  const catEntries = Object.entries(TAG_CATEGORIES);
+
+  return (
+    <div>
+      {/* Phase indicator */}
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "center",
+        gap: "12px", marginBottom: "24px",
+      }}>
+        <div style={{
+          display: "flex", alignItems: "center", gap: "8px",
+          opacity: phase === 1 ? 1 : 0.5,
+        }}>
+          <div style={{
+            width: "28px", height: "28px", borderRadius: "50%",
+            background: phase === 1 ? HD.walnut : "#2E8B57",
+            color: "#fff", display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: "0.8rem", fontWeight: 600,
+          }}>
+            {phase > 1 ? "\u2713" : "1"}
+          </div>
+          <span style={{
+            fontSize: "0.85rem", fontWeight: phase === 1 ? 600 : 400,
+            color: HD.black, fontFamily: FONT_BODY,
+          }}>
+            Playlist Details
+          </span>
+        </div>
+        <div style={{ width: "40px", height: "2px", background: phase >= 2 ? HD.walnut : HD.rule }} />
+        <div style={{
+          display: "flex", alignItems: "center", gap: "8px",
+          opacity: phase === 2 ? 1 : 0.5,
+        }}>
+          <div style={{
+            width: "28px", height: "28px", borderRadius: "50%",
+            background: phase === 2 ? HD.walnut : HD.rule,
+            color: phase === 2 ? "#fff" : HD.warmGray,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: "0.8rem", fontWeight: 600,
+          }}>
+            2
+          </div>
+          <span style={{
+            fontSize: "0.85rem", fontWeight: phase === 2 ? 600 : 400,
+            color: phase === 2 ? HD.black : HD.warmGray, fontFamily: FONT_BODY,
+          }}>
+            Add Keywords
+          </span>
+        </div>
+      </div>
+
+      {/* ─── PHASE 1: Playlist Details ─── */}
+      {phase === 1 && (
+        <div>
+          <div style={{
+            background: HD.cream, border: `1px solid ${HD.rule}`, borderRadius: "8px", padding: "24px", marginBottom: "24px",
+          }}>
+            <h3 style={{ margin: "0 0 4px 0", fontFamily: FONT_DISPLAY, color: HD.black }}>Tell us about the playlist</h3>
+            <p style={{ margin: "0 0 16px 0", color: HD.warmGray, fontSize: "0.85rem" }}>
+              Basic info first. We'll handle tags in the next step.
+            </p>
+
+            <div style={{ display: "grid", gap: "12px" }}>
+              <input
+                type="text" placeholder="Playlist title *" value={form.title}
+                onChange={e => setForm(p => ({ ...p, title: e.target.value }))}
+                style={inputStyle}
+              />
+              <textarea
+                placeholder="Description / story behind this playlist — what's the vibe? what inspired it?"
+                value={form.description}
+                onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
+                rows={3} style={{ ...inputStyle, resize: "vertical" }}
+              />
+              <textarea
+                placeholder="When and where would you play this? What should people feel when they hear it?"
+                value={form.moodVibe}
+                onChange={e => setForm(p => ({ ...p, moodVibe: e.target.value }))}
+                rows={2} style={{ ...inputStyle, resize: "vertical" }}
+              />
+
+              <div style={{ borderTop: `1px solid ${HD.rule}`, paddingTop: "12px", marginTop: "4px" }}>
+                <p style={{ margin: "0 0 8px 0", color: HD.warmGray, fontSize: "0.8rem", fontFamily: FONT_NAV, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  Streaming Links
+                </p>
+                <div style={{ display: "grid", gap: "8px" }}>
+                  <input
+                    type="url" placeholder="Spotify link" value={form.spotifyLink}
+                    onChange={e => setForm(p => ({ ...p, spotifyLink: e.target.value }))}
+                    style={inputStyle}
+                  />
+                  <input
+                    type="url" placeholder="Apple Music link" value={form.appleMusicLink}
+                    onChange={e => setForm(p => ({ ...p, appleMusicLink: e.target.value }))}
+                    style={inputStyle}
+                  />
+                  <input
+                    type="url" placeholder="TIDAL link" value={form.tidalLink}
+                    onChange={e => setForm(p => ({ ...p, tidalLink: e.target.value }))}
+                    style={inputStyle}
+                  />
+                </div>
+              </div>
+
+              <div style={{ borderTop: `1px solid ${HD.rule}`, paddingTop: "12px", marginTop: "4px" }}>
+                <p style={{ margin: "0 0 8px 0", color: HD.warmGray, fontSize: "0.8rem", fontFamily: FONT_NAV, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  About You
+                </p>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                  <input
+                    type="text" placeholder="Your name (private) *" value={form.contactName}
+                    onChange={e => setForm(p => ({ ...p, contactName: e.target.value }))}
+                    style={inputStyle}
+                  />
+                  <input
+                    type="text" placeholder="Credit as (display name, optional)"
+                    value={form.creditName}
+                    onChange={e => setForm(p => ({ ...p, creditName: e.target.value }))}
+                    style={inputStyle}
+                  />
+                </div>
+                <p style={{ margin: "4px 0 0 0", color: HD.warmGray, fontSize: "0.75rem" }}>
+                  Your name stays private. "Credit as" is what shows publicly — leave blank to use your name.
+                </p>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                <input
+                  type="text" placeholder="# of tracks" value={form.tracks}
+                  onChange={e => setForm(p => ({ ...p, tracks: e.target.value }))}
+                  style={inputStyle}
+                />
+                <input
+                  type="text" placeholder="Runtime (e.g. 1hr 30min)" value={form.runtime}
+                  onChange={e => setForm(p => ({ ...p, runtime: e.target.value }))}
+                  style={inputStyle}
+                />
+              </div>
+            </div>
+          </div>
+
+          {form.title.trim() && form.description.trim() && (
+            <div style={{
+              background: "#f0f7f0", border: "1px solid #b8d4b8", borderRadius: "8px",
+              padding: "16px 20px", marginBottom: "16px",
+              fontSize: "0.85rem", color: "#3a5a3a", fontFamily: FONT_BODY,
+            }}>
+              When you proceed, we'll auto-suggest tags across all categories based on your title and description.
+            </div>
+          )}
+          {aiError && (
+            <div style={{
+              background: "#fff0f0", border: "1px solid #d4b8b8", borderRadius: "8px",
+              padding: "16px 20px", marginBottom: "16px",
+              fontSize: "0.85rem", color: "#5a3a3a", fontFamily: FONT_BODY,
+            }}>
+              Couldn't generate tag suggestions: {aiError}. You can still tag manually.
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+            <button
+              onClick={goToPhase2}
+              disabled={!form.title.trim() || !form.contactName.trim() || aiLoading}
+              style={{
+                background: (form.title.trim() && form.contactName.trim() && !aiLoading) ? HD.walnut : "#ccc",
+                color: "#fff", border: "none", borderRadius: "6px",
+                padding: "12px 32px", fontSize: "1rem", fontWeight: 600,
+                cursor: (form.title.trim() && form.contactName.trim() && !aiLoading) ? "pointer" : "default",
+                fontFamily: FONT_BODY,
+              }}
+            >
+              {aiLoading ? "Generating tag suggestions..." : "Next: Add Keywords \u2192"}
+            </button>
+            {(!form.title.trim() || !form.contactName.trim()) && !aiLoading && (
+              <span style={{ fontSize: "0.8rem", color: HD.warmGray }}>
+                {!form.title.trim() ? "Add a title to continue" : "Add your name to continue"}
+              </span>
+            )}
+            {aiLoading && (
+              <span style={{ fontSize: "0.8rem", color: HD.warmGray }}>
+                Reading the vibe...
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ─── PHASE 2: Tagging ─── */}
+      {phase === 2 && (
+        <div>
+          {/* Summary of phase 1 */}
+          <div style={{
+            background: HD.cream, border: `1px solid ${HD.rule}`, borderRadius: "8px",
+            padding: "16px 20px", marginBottom: "20px",
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+          }}>
+            <div>
+              <h3 style={{ margin: "0 0 2px 0", fontFamily: FONT_DISPLAY, color: HD.black, fontSize: "1.05rem" }}>
+                {form.title}
+              </h3>
+              <span style={{ fontSize: "0.8rem", color: HD.warmGray }}>
+                {form.creditName || form.contactName}
+                {form.tracks ? ` \u00b7 ${form.tracks} tracks` : ""}
+                {form.runtime ? ` \u00b7 ${form.runtime}` : ""}
+              </span>
+            </div>
+            <button
+              onClick={() => setPhase(1)}
+              style={{
+                background: "transparent", border: `1px solid ${HD.rule}`, borderRadius: "6px",
+                padding: "6px 14px", fontSize: "0.8rem", cursor: "pointer", color: HD.warmGray,
+              }}
+            >
+              \u2190 Edit Details
+            </button>
+          </div>
+
+          {/* AI suggestions summary */}
+          {aiSuggestions && totalSuggested > 0 && (
+            <div style={{
+              background: "#f0f7f0", border: "1px solid #b8d4b8", borderRadius: "8px",
+              padding: "16px 20px", marginBottom: "20px",
+              fontFamily: FONT_BODY,
+            }}>
+              <div style={{ fontSize: "0.85rem", color: "#3a5a3a", marginBottom: "4px", fontWeight: 600 }}>
+                {totalSuggested} tags auto-suggested
+              </div>
+              <div style={{ fontSize: "0.8rem", color: "#5a7a5a" }}>
+                Review the suggestions below — they're pre-selected. Click any tag to add or remove it.
+              </div>
+              <button
+                onClick={fetchAISuggestions}
+                disabled={aiLoading}
+                style={{
+                  marginTop: "8px", background: "transparent", border: "1px solid #b8d4b8",
+                  borderRadius: "4px", padding: "4px 12px", fontSize: "0.75rem",
+                  cursor: aiLoading ? "default" : "pointer", color: "#3a5a3a",
+                }}
+              >
+                {aiLoading ? "Regenerating..." : "Regenerate suggestions"}
+              </button>
+            </div>
+          )}
+
+          {/* All tag categories */}
+          <div style={{
+            background: HD.cream, border: `1px solid ${HD.rule}`, borderRadius: "8px",
+            overflow: "hidden", marginBottom: "20px",
+          }}>
+            <div style={{ padding: "16px 24px 0" }}>
+              <h3 style={{ margin: "0 0 4px 0", fontFamily: FONT_DISPLAY, color: HD.black, fontSize: "1rem" }}>
+                Keywords
+              </h3>
+              <p style={{ margin: "0 0 8px 0", color: HD.warmGray, fontSize: "0.8rem" }}>
+                What words would you use to describe (and search for) this playlist?
+              </p>
+            </div>
+
+            {/* Category tabs */}
+            <div style={{
+              display: "flex", gap: "0", borderBottom: `1px solid ${HD.rule}`, overflowX: "auto",
+              padding: "0 24px",
+            }}>
+              {catEntries.map(([key, cat]) => {
+                const showThis = activeCategory === key;
+                const catSuggestionCount = aiSuggestions && aiSuggestions[key] ? aiSuggestions[key].length : 0;
+                return (
+                  <button
+                    key={key}
+                    onClick={() => setActiveCategory(key)}
+                    style={{
+                      background: showThis ? cat.color : "transparent",
+                      color: showThis ? "#fff" : HD.warmGray,
+                      border: "none",
+                      borderRadius: "6px 6px 0 0",
+                      padding: "8px 16px",
+                      fontSize: "0.8rem",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.03em",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {cat.label}
+                    {catSuggestionCount > 0 && !showThis && (
+                      <span style={{
+                        marginLeft: "4px", background: "#b8d4b8", color: "#3a5a3a",
+                        borderRadius: "8px", padding: "1px 5px", fontSize: "0.65rem",
+                      }}>
+                        {catSuggestionCount}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div style={{ padding: "12px 24px 16px" }}>
+              {aiSuggestions && aiSuggestions[activeCategory] && aiSuggestions[activeCategory].length > 0 && (
+                <div style={{
+                  fontSize: "0.75rem", color: "#5a7a5a", marginBottom: "8px",
+                  fontStyle: "italic",
+                }}>
+                  Suggested: {aiSuggestions[activeCategory].join(", ")}
+                </div>
+              )}
+              <TagCloud
+                tags={TAG_CATEGORIES[activeCategory].tags}
+                activeTags={form.tags}
+                onToggle={toggleTag}
+                color={TAG_CATEGORIES[activeCategory].color}
+              />
+              <div style={{ display: "flex", gap: "8px", marginTop: "12px", alignItems: "center" }}>
+                <input
+                  type="text"
+                  placeholder={`Suggest a new ${TAG_CATEGORIES[activeCategory].label.toLowerCase()} tag...`}
+                  value={suggestTag}
+                  onChange={e => setSuggestTag(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && handleSuggest()}
+                  style={{ ...inputStyle, flex: 1, fontSize: "0.85rem" }}
+                />
+                <button onClick={handleSuggest} style={smallBtnStyle}>+ Add</button>
+              </div>
+            </div>
+          </div>
+
+          {customTags.length > 0 && (
+            <div style={{
+              fontSize: "0.8rem", color: HD.warmGray, marginBottom: "12px",
+              background: HD.cream, border: `1px solid ${HD.rule}`, borderRadius: "8px",
+              padding: "12px 20px",
+            }}>
+              <span style={{ fontWeight: 600 }}>Custom tags: </span>{customTags.join(", ")}
+            </div>
+          )}
+
+          {/* Selected tags summary */}
+          {form.tags.length > 0 && (
+            <div style={{
+              background: HD.cream, border: `1px solid ${HD.rule}`, borderRadius: "8px",
+              padding: "16px 24px", marginBottom: "16px",
+            }}>
+              <div style={{ fontSize: "0.8rem", color: HD.warmGray, marginBottom: "8px", fontWeight: 600 }}>
+                {form.tags.length} tags selected:
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                {form.tags.map(tag => (
+                  <span
+                    key={tag}
+                    onClick={() => toggleTag(tag)}
+                    style={{
+                      background: HD.walnut, color: "#fff", borderRadius: "4px",
+                      padding: "3px 10px", fontSize: "0.8rem", cursor: "pointer",
+                    }}
+                  >
+                    {tag} &times;
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {submitError && (
+            <div style={{
+              background: "#fff0f0", border: "1px solid #d4b8b8", borderRadius: "8px",
+              padding: "16px 20px", marginBottom: "16px",
+              fontSize: "0.85rem", color: "#5a3a3a", fontFamily: FONT_BODY,
+            }}>
+              {submitError}
+            </div>
+          )}
+
+          {/* Action buttons */}
+          <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+            <button
+              onClick={() => setPhase(1)}
+              style={{
+                background: "transparent", border: `1px solid ${HD.rule}`,
+                borderRadius: "6px", padding: "12px 24px", fontSize: "1rem",
+                cursor: "pointer", color: HD.warmGray, fontFamily: FONT_BODY,
+              }}
+            >
+              \u2190 Back
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={submitting}
+              style={{
+                background: submitting ? "#ccc" : HD.amber,
+                color: "#fff", border: "none", borderRadius: "6px",
+                padding: "12px 32px", fontSize: "1rem", fontWeight: 600,
+                cursor: submitting ? "default" : "pointer",
+                fontFamily: FONT_BODY,
+              }}
+            >
+              {submitting ? "Submitting..." : "Submit Playlist"}
+            </button>
+            {form.tags.length === 0 && (
+              <span style={{ fontSize: "0.8rem", color: HD.warmGray }}>
+                You can submit without tags, but the more you tag, the better search works
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── ADMIN VIEW ─────────────────────────────────────────────────────────────
+
+function AdminView({ playlists, adminPassword, onRefresh }) {
+  const [actionLoading, setActionLoading] = useState(null);
+  const [error, setError] = useState("");
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({});
+
+  const pending = playlists.filter(p => p.status === "pending");
+  const approved = playlists.filter(p => p.status === "approved");
+  const rejected = playlists.filter(p => p.status === "rejected");
+
+  const handleAction = async (action, id, extra = {}) => {
+    setActionLoading(id + action);
+    setError("");
+    try {
+      await adminAction(action, id, adminPassword, extra);
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const startEdit = (pl) => {
+    setEditingId(pl.id);
+    setEditForm({
+      title: pl.title,
+      description: pl.description || "",
+      moodVibe: pl.moodVibe || "",
+      creditName: pl.curator || "",
+      spotifyLink: pl.spotifyLink || "",
+      appleMusicLink: pl.appleMusicLink || "",
+      tidalLink: pl.tidalLink || "",
+      tracks: pl.tracks || "",
+      runtime: pl.runtime || "",
+    });
+  };
+
+  const saveEdit = async (id) => {
+    setActionLoading(id + "update");
+    setError("");
+    try {
+      await adminAction("update", id, adminPassword, editForm);
+      setEditingId(null);
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const renderPlaylistAdmin = (pl) => {
+    const isEditing = editingId === pl.id;
+    return (
+      <div key={pl.id} style={{
+        background: HD.warmWhite, border: `1px solid ${HD.rule}`, borderRadius: "6px",
+        padding: "16px 20px", marginBottom: "10px",
+      }}>
+        {isEditing ? (
+          <div style={{ display: "grid", gap: "8px" }}>
+            <input value={editForm.title} onChange={e => setEditForm(p => ({ ...p, title: e.target.value }))}
+              placeholder="Title" style={inputStyle} />
+            <textarea value={editForm.description} onChange={e => setEditForm(p => ({ ...p, description: e.target.value }))}
+              placeholder="Description" rows={2} style={{ ...inputStyle, resize: "vertical" }} />
+            <textarea value={editForm.moodVibe} onChange={e => setEditForm(p => ({ ...p, moodVibe: e.target.value }))}
+              placeholder="Mood / Vibe" rows={2} style={{ ...inputStyle, resize: "vertical" }} />
+            <input value={editForm.creditName} onChange={e => setEditForm(p => ({ ...p, creditName: e.target.value }))}
+              placeholder="Credit name" style={inputStyle} />
+            <input value={editForm.spotifyLink} onChange={e => setEditForm(p => ({ ...p, spotifyLink: e.target.value }))}
+              placeholder="Spotify link" style={inputStyle} />
+            <input value={editForm.appleMusicLink} onChange={e => setEditForm(p => ({ ...p, appleMusicLink: e.target.value }))}
+              placeholder="Apple Music link" style={inputStyle} />
+            <input value={editForm.tidalLink} onChange={e => setEditForm(p => ({ ...p, tidalLink: e.target.value }))}
+              placeholder="TIDAL link" style={inputStyle} />
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+              <input value={editForm.tracks} onChange={e => setEditForm(p => ({ ...p, tracks: e.target.value }))}
+                placeholder="Tracks" style={inputStyle} />
+              <input value={editForm.runtime} onChange={e => setEditForm(p => ({ ...p, runtime: e.target.value }))}
+                placeholder="Runtime" style={inputStyle} />
+            </div>
+            <div style={{ display: "flex", gap: "8px", marginTop: "4px" }}>
+              <button onClick={() => saveEdit(pl.id)} disabled={actionLoading === pl.id + "update"}
+                style={{ ...smallBtnStyle, background: HD.amber }}>
+                {actionLoading === pl.id + "update" ? "Saving..." : "Save"}
+              </button>
+              <button onClick={() => setEditingId(null)}
+                style={{ ...smallBtnStyle, background: "transparent", color: HD.warmGray, border: `1px solid ${HD.rule}` }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div style={{ flex: 1 }}>
+                <h4 style={{ margin: "0 0 4px 0", fontFamily: FONT_DISPLAY, color: HD.black, fontSize: "1.05rem" }}>
+                  {pl.title}
+                </h4>
+                <div style={{ fontSize: "0.75rem", color: HD.warmGray, fontFamily: FONT_NAV, marginBottom: "6px" }}>
+                  <strong>Contact:</strong> {pl.contactName || "—"} &middot;{" "}
+                  <strong>Credit:</strong> {pl.curator || "—"}
+                  {pl.tracks ? <> &middot; {pl.tracks} tracks</> : null}
+                  {pl.runtime ? <> &middot; {pl.runtime}</> : null}
+                </div>
+                {pl.description && (
+                  <p style={{ margin: "0 0 4px 0", color: "#4a3f34", fontSize: "0.85rem", lineHeight: 1.5, fontFamily: FONT_BODY }}>
+                    {pl.description}
+                  </p>
+                )}
+                {pl.moodVibe && (
+                  <p style={{ margin: "0 0 4px 0", color: HD.warmGray, fontSize: "0.8rem", fontStyle: "italic" }}>
+                    {pl.moodVibe}
+                  </p>
+                )}
+                {pl.tags && pl.tags.length > 0 && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", marginTop: "6px" }}>
+                    {pl.tags.slice(0, 12).map(t => (
+                      <span key={t} style={{
+                        background: HD.cream, border: `1px solid ${HD.rule}`, borderRadius: "3px",
+                        padding: "1px 6px", fontSize: "0.7rem", color: HD.warmGray,
+                      }}>{t}</span>
+                    ))}
+                    {pl.tags.length > 12 && (
+                      <span style={{ fontSize: "0.7rem", color: HD.warmGray }}>+{pl.tags.length - 12} more</span>
+                    )}
+                  </div>
+                )}
+                {(pl.spotifyLink || pl.appleMusicLink || pl.tidalLink || pl.link) && (
+                  <div style={{ display: "flex", gap: "12px", marginTop: "6px" }}>
+                    {pl.spotifyLink && <a href={pl.spotifyLink} target="_blank" rel="noreferrer" style={{ color: HD.amber, fontSize: "0.8rem" }}>Spotify</a>}
+                    {pl.appleMusicLink && <a href={pl.appleMusicLink} target="_blank" rel="noreferrer" style={{ color: HD.amber, fontSize: "0.8rem" }}>Apple Music</a>}
+                    {pl.tidalLink && <a href={pl.tidalLink} target="_blank" rel="noreferrer" style={{ color: HD.amber, fontSize: "0.8rem" }}>TIDAL</a>}
+                    {!pl.spotifyLink && !pl.appleMusicLink && !pl.tidalLink && pl.link && (
+                      <a href={pl.link} target="_blank" rel="noreferrer" style={{ color: HD.amber, fontSize: "0.8rem" }}>Link</a>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div style={{
+                padding: "3px 10px", borderRadius: "4px", fontSize: "0.7rem", fontWeight: 600,
+                fontFamily: FONT_NAV, textTransform: "uppercase", letterSpacing: "0.05em", flexShrink: 0,
+                marginLeft: "12px",
+                background: pl.status === "approved" ? "#e8f5e8" : pl.status === "rejected" ? "#fde8e8" : "#fff8e8",
+                color: pl.status === "approved" ? "#2E8B57" : pl.status === "rejected" ? "#c53030" : "#b8860b",
+              }}>
+                {pl.status}
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: "8px", marginTop: "12px", borderTop: `1px solid ${HD.rule}`, paddingTop: "10px" }}>
+              {pl.status === "pending" && (
+                <>
+                  <button onClick={() => handleAction("approve", pl.id)}
+                    disabled={actionLoading === pl.id + "approve"}
+                    style={{
+                      background: "#2E8B57", color: "#fff", border: "none", borderRadius: "4px",
+                      padding: "6px 16px", fontSize: "0.75rem", fontWeight: 600, cursor: "pointer",
+                      fontFamily: FONT_NAV, textTransform: "uppercase", letterSpacing: "0.05em",
+                    }}>
+                    {actionLoading === pl.id + "approve" ? "..." : "Approve"}
+                  </button>
+                  <button onClick={() => handleAction("reject", pl.id)}
+                    disabled={actionLoading === pl.id + "reject"}
+                    style={{
+                      background: "#c53030", color: "#fff", border: "none", borderRadius: "4px",
+                      padding: "6px 16px", fontSize: "0.75rem", fontWeight: 600, cursor: "pointer",
+                      fontFamily: FONT_NAV, textTransform: "uppercase", letterSpacing: "0.05em",
+                    }}>
+                    {actionLoading === pl.id + "reject" ? "..." : "Reject"}
+                  </button>
+                </>
+              )}
+              {pl.status === "rejected" && (
+                <button onClick={() => handleAction("approve", pl.id)}
+                  disabled={actionLoading === pl.id + "approve"}
+                  style={{
+                    background: "#2E8B57", color: "#fff", border: "none", borderRadius: "4px",
+                    padding: "6px 16px", fontSize: "0.75rem", fontWeight: 600, cursor: "pointer",
+                    fontFamily: FONT_NAV, textTransform: "uppercase", letterSpacing: "0.05em",
+                  }}>
+                  {actionLoading === pl.id + "approve" ? "..." : "Approve"}
+                </button>
+              )}
+              <button onClick={() => startEdit(pl)}
+                style={{
+                  background: "transparent", color: HD.warmGray, border: `1px solid ${HD.rule}`,
+                  borderRadius: "4px", padding: "6px 16px", fontSize: "0.75rem", fontWeight: 600,
+                  cursor: "pointer", fontFamily: FONT_NAV, textTransform: "uppercase", letterSpacing: "0.05em",
+                }}>
+                Edit
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div>
+      {error && (
+        <div style={{
+          background: "#fff0f0", border: "1px solid #d4b8b8", borderRadius: "8px",
+          padding: "12px 20px", marginBottom: "16px",
+          fontSize: "0.85rem", color: "#5a3a3a",
+        }}>
+          {error}
+        </div>
+      )}
+
+      {/* Pending */}
+      <div style={{ marginBottom: "32px" }}>
+        <h3 style={{ fontFamily: FONT_DISPLAY, color: HD.black, margin: "0 0 12px 0" }}>
+          Pending Review ({pending.length})
+        </h3>
+        {pending.length === 0 ? (
+          <p style={{ color: HD.warmGray, fontSize: "0.9rem" }}>No playlists waiting for review.</p>
+        ) : (
+          pending.map(renderPlaylistAdmin)
+        )}
+      </div>
+
+      {/* Approved */}
+      <div style={{ marginBottom: "32px" }}>
+        <h3 style={{ fontFamily: FONT_DISPLAY, color: HD.black, margin: "0 0 12px 0" }}>
+          Approved ({approved.length})
+        </h3>
+        {approved.map(renderPlaylistAdmin)}
+      </div>
+
+      {/* Rejected */}
+      {rejected.length > 0 && (
+        <div>
+          <h3 style={{ fontFamily: FONT_DISPLAY, color: HD.black, margin: "0 0 12px 0" }}>
+            Rejected ({rejected.length})
+          </h3>
+          {rejected.map(renderPlaylistAdmin)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── INVALID INVITE SCREEN ─────────────────────────────────────────────────
+
+function InvalidInvite() {
+  return (
+    <div style={{ textAlign: "center", padding: "64px 24px" }}>
+      <h2 style={{ fontFamily: FONT_DISPLAY, color: HD.black, margin: "0 0 12px 0" }}>
+        Invite required
+      </h2>
+      <p style={{ color: HD.warmGray, fontFamily: FONT_BODY, fontSize: "0.95rem", maxWidth: "400px", margin: "0 auto" }}>
+        Playlist submissions are invite-only. If you have an invite link, make sure you're using the full URL.
+      </p>
+    </div>
+  );
+}
+
 // ─── MAIN APP ───────────────────────────────────────────────────────────────
-const FONT_DISPLAY = "'Playfair Display', Georgia, serif";
-const FONT_BODY = "Georgia, 'Times New Roman', serif";
-const FONT_NAV = "'Archivo Narrow', 'Titling Gothic FB', -apple-system, Helvetica, sans-serif";
-
-// High Dive brand palette — from official brand guidelines 3.5.26
-const HD = {
-  black: "#3E3E3F",         // HIGH DIVE BLACK (Pantone Black 3 U)
-  walnut: "#2E2E2F",        // darker shade for gradients
-  amber: "#F27178",         // HIGH DIVE PINK — accent, used sparingly
-  cream: "#FAF7F5",         // HIGH DIVE CREAM — background
-  warmWhite: "#FFFFFF",     // cards
-  warmGray: "#7A7A7B",      // secondary text
-  rule: "#E0DEDD",          // thin rules
-};
-
-const inputStyle = {
-  padding: "10px 14px", borderRadius: "4px", border: `1px solid ${HD.rule}`,
-  fontSize: "0.95rem", fontFamily: FONT_BODY, background: "#fff", color: HD.black,
-  outline: "none",
-};
-
-const smallBtnStyle = {
-  background: HD.walnut, color: "#fff", border: "none", borderRadius: "4px",
-  padding: "8px 16px", fontSize: "0.85rem", cursor: "pointer", fontWeight: 600,
-};
 
 export default function HighDivePlaylistDB() {
+  // Parse URL params
+  const params = new URLSearchParams(window.location.search);
+  const inviteToken = params.get("key") || "";
+  const adminPassword = params.get("admin") || "";
+
   const [view, setView] = useState("search");
-  const [playlists, setPlaylists] = useState(INITIAL_PLAYLISTS);
+  const [playlists, setPlaylists] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [inviteValid, setInviteValid] = useState(null); // null = unchecked, true/false
+
+  // Fetch playlists on mount and when view changes
+  const loadPlaylists = useCallback(async () => {
+    try {
+      const data = await fetchPlaylists(adminPassword || null);
+      setPlaylists(data);
+      setLoadError("");
+    } catch (err) {
+      setLoadError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [adminPassword]);
+
+  useEffect(() => {
+    loadPlaylists();
+  }, [loadPlaylists]);
+
+  // If invite token present, validate on mount
+  useEffect(() => {
+    if (inviteToken) {
+      setInviteValid(true); // We'll validate server-side on submit
+    }
+  }, [inviteToken]);
+
+  // Determine available views
+  const isAdmin = !!adminPassword;
+  const hasInvite = !!inviteToken;
+
+  // Auto-switch to curate view if invite token present
+  useEffect(() => {
+    if (hasInvite && !isAdmin) {
+      setView("curate");
+    }
+  }, [hasInvite, isAdmin]);
+
+  const approvedPlaylists = isAdmin ? playlists.filter(p => p.status === "approved") : playlists;
 
   return (
     <div style={{
@@ -1354,28 +1504,81 @@ export default function HighDivePlaylistDB() {
           >
             Search
           </button>
-          <button
-            onClick={() => setView("curate")}
-            style={{
-              background: "transparent",
-              color: view === "curate" ? HD.black : HD.warmGray,
-              border: "none",
-              borderBottom: view === "curate" ? `2px solid ${HD.black}` : "2px solid transparent",
-              padding: "8px 24px", fontSize: "0.75rem", cursor: "pointer",
-              fontFamily: FONT_NAV, fontWeight: 600,
-              textTransform: "uppercase", letterSpacing: "0.15em",
-              marginBottom: "-2px",
-            }}
-          >
-            Curate
-          </button>
+          {(hasInvite || isAdmin) && (
+            <button
+              onClick={() => setView("curate")}
+              style={{
+                background: "transparent",
+                color: view === "curate" ? HD.black : HD.warmGray,
+                border: "none",
+                borderBottom: view === "curate" ? `2px solid ${HD.black}` : "2px solid transparent",
+                padding: "8px 24px", fontSize: "0.75rem", cursor: "pointer",
+                fontFamily: FONT_NAV, fontWeight: 600,
+                textTransform: "uppercase", letterSpacing: "0.15em",
+                marginBottom: "-2px",
+              }}
+            >
+              Submit
+            </button>
+          )}
+          {isAdmin && (
+            <button
+              onClick={() => setView("admin")}
+              style={{
+                background: "transparent",
+                color: view === "admin" ? HD.black : HD.warmGray,
+                border: "none",
+                borderBottom: view === "admin" ? `2px solid ${HD.black}` : "2px solid transparent",
+                padding: "8px 24px", fontSize: "0.75rem", cursor: "pointer",
+                fontFamily: FONT_NAV, fontWeight: 600,
+                textTransform: "uppercase", letterSpacing: "0.15em",
+                marginBottom: "-2px",
+              }}
+            >
+              Admin
+            </button>
+          )}
         </div>
       </div>
 
-      {view === "search"
-        ? <SearchView playlists={playlists} setPlaylists={setPlaylists} />
-        : <CuratorView playlists={playlists} setPlaylists={setPlaylists} />
-      }
+      {/* Loading state */}
+      {loading && (
+        <div style={{ textAlign: "center", padding: "48px", color: HD.warmGray, fontFamily: FONT_BODY }}>
+          Loading playlists...
+        </div>
+      )}
+
+      {loadError && (
+        <div style={{
+          background: "#fff0f0", border: "1px solid #d4b8b8", borderRadius: "8px",
+          padding: "16px 20px", marginBottom: "16px", textAlign: "center",
+          fontSize: "0.9rem", color: "#5a3a3a", fontFamily: FONT_BODY,
+        }}>
+          {loadError}
+          <br />
+          <button onClick={loadPlaylists} style={{
+            marginTop: "8px", background: HD.walnut, color: "#fff", border: "none",
+            borderRadius: "4px", padding: "6px 16px", fontSize: "0.85rem", cursor: "pointer",
+          }}>
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* Views */}
+      {!loading && view === "search" && (
+        <SearchView playlists={approvedPlaylists} />
+      )}
+
+      {!loading && view === "curate" && (
+        hasInvite
+          ? <CuratorView inviteToken={inviteToken} onSubmitted={loadPlaylists} />
+          : <InvalidInvite />
+      )}
+
+      {!loading && view === "admin" && isAdmin && (
+        <AdminView playlists={playlists} adminPassword={adminPassword} onRefresh={loadPlaylists} />
+      )}
 
       {/* Footer */}
       <div style={{
@@ -1384,7 +1587,7 @@ export default function HighDivePlaylistDB() {
         fontSize: "0.7rem", fontFamily: FONT_NAV,
         textTransform: "uppercase", letterSpacing: "0.15em",
       }}>
-        High Dive HiFi Lounge &middot; {playlists.length} playlists &middot; Birmingham, AL
+        High Dive HiFi Lounge &middot; {approvedPlaylists.length} playlists &middot; Birmingham, AL
       </div>
     </div>
   );
