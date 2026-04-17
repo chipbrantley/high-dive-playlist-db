@@ -170,12 +170,19 @@ exports.handler = async (event) => {
       };
     }
 
-    // Insert all seed playlists as approved
+    // Insert all seed playlists as approved — explicit keys so PostgREST is happy
     const toInsert = SEED_PLAYLISTS.map((p) => ({
-      ...p,
+      title: p.title,
+      contact_name: p.contact_name,
+      credit_name: p.credit_name || null,
+      description: p.description || "",
+      mood_vibe: "",
+      spotify_link: p.spotify_link || "",
       apple_music_link: "",
       tidal_link: "",
-      mood_vibe: "",
+      tracks: p.tracks || null,
+      runtime: p.runtime || "",
+      tags: p.tags || [],
       status: "approved",
     }));
 
