@@ -823,8 +823,11 @@ function CuratorView({ inviteToken, onSubmitted }) {
               />
 
               <div style={{ borderTop: `1px solid ${HD.rule}`, paddingTop: "12px", marginTop: "4px" }}>
-                <p style={{ margin: "0 0 8px 0", color: HD.warmGray, fontSize: "0.8rem", fontFamily: FONT_NAV, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                <p style={{ margin: "0 0 4px 0", color: HD.warmGray, fontSize: "0.8rem", fontFamily: FONT_NAV, textTransform: "uppercase", letterSpacing: "0.05em" }}>
                   Streaming Links
+                </p>
+                <p style={{ margin: "0 0 8px 0", color: HD.warmGray, fontSize: "0.75rem" }}>
+                  Just one link is fine — add whichever platform your playlist lives on.
                 </p>
                 <div style={{ display: "grid", gap: "8px" }}>
                   <input
