@@ -810,7 +810,7 @@ function CuratorView({ inviteToken, onSubmitted }) {
                 style={inputStyle}
               />
               <textarea
-                placeholder="Description / story behind this playlist — what's the vibe? what inspired it?"
+                placeholder="What's the story behind this playlist? How would you describe it to someone else?"
                 value={form.description}
                 onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
                 rows={3} style={{ ...inputStyle, resize: "vertical" }}
