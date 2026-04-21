@@ -54,8 +54,7 @@ const TAG_TAXONOMY = {
     "instrumental","instrumental-heavy","vocal-forward","mixed vocals","deep cuts only",
     "some recognizable","mostly recognizable","explicit content","clean",
     "builds energy","steady energy","winds down","journey/arc",
-    "great openers","great closers","pairs with coffee","pairs with wine",
-    "pairs with cocktails","pairs with food"
+    "great openers","great closers"
   ],
 };
 
