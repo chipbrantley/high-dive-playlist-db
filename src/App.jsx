@@ -1228,10 +1228,28 @@ function AdminView({ playlists, adminPassword, onRefresh }) {
               placeholder="Credit name" style={inputStyle} />
             <input value={editForm.spotifyLink} onChange={e => setEditForm(p => ({ ...p, spotifyLink: e.target.value }))}
               placeholder="Spotify link" style={inputStyle} />
-            <input value={editForm.appleMusicLink} onChange={e => setEditForm(p => ({ ...p, appleMusicLink: e.target.value }))}
-              placeholder="Apple Music link" style={inputStyle} />
-            <input value={editForm.tidalLink} onChange={e => setEditForm(p => ({ ...p, tidalLink: e.target.value }))}
-              placeholder="TIDAL link" style={inputStyle} />
+            <div>
+              <input value={editForm.appleMusicLink} onChange={e => setEditForm(p => ({ ...p, appleMusicLink: e.target.value }))}
+                placeholder="Apple Music link" style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} />
+              {!editForm.appleMusicLink && editForm.spotifyLink && (
+                <a href={`https://www.tunemymusic.com/?source=spotify&url=${encodeURIComponent(editForm.spotifyLink)}`}
+                  target="_blank" rel="noreferrer"
+                  style={{ fontSize: "0.7rem", color: HD.amber, fontFamily: FONT_NAV, marginTop: "2px", display: "inline-block" }}>
+                  Convert from Spotify via TuneMyMusic &rarr;
+                </a>
+              )}
+            </div>
+            <div>
+              <input value={editForm.tidalLink} onChange={e => setEditForm(p => ({ ...p, tidalLink: e.target.value }))}
+                placeholder="TIDAL link" style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} />
+              {!editForm.tidalLink && editForm.spotifyLink && (
+                <a href={`https://www.tunemymusic.com/?source=spotify&url=${encodeURIComponent(editForm.spotifyLink)}`}
+                  target="_blank" rel="noreferrer"
+                  style={{ fontSize: "0.7rem", color: HD.amber, fontFamily: FONT_NAV, marginTop: "2px", display: "inline-block" }}>
+                  Convert from Spotify via TuneMyMusic &rarr;
+                </a>
+              )}
+            </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
               <input value={editForm.tracks} onChange={e => setEditForm(p => ({ ...p, tracks: e.target.value }))}
                 placeholder="Tracks" style={inputStyle} />
